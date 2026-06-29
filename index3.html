@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MoneyLogix Strategy Builder — Options Strategy Lifecycle Platform</title>
+<meta name="description" content="AI-native options strategy construction and monitoring platform for Indian retail traders. Real-time Greeks, assumption checking, stress testing, and plain-English AI explanations.">
+<meta name="keywords" content="options strategy builder, Nifty options, Black-Scholes, Iron Condor, options Greeks, India options trading, AI options trading">
+<meta name="author" content="MoneyLogix">
+<meta name="theme-color" content="#0f1117">
+<link rel="canonical" href="https://moneylogix.example.com/">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="MoneyLogix Strategy Builder — Options Strategy Lifecycle Platform">
+<meta property="og:description" content="AI-native options strategy construction and monitoring platform for Indian retail traders. Real-time Greeks, assumption checking, stress testing, and plain-English AI explanations.">
+<meta property="og:url" content="https://moneylogix.example.com/">
+<meta property="og:site_name" content="MoneyLogix Strategy Builder">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="MoneyLogix Strategy Builder">
+<meta name="twitter:description" content="AI-native options strategy construction and monitoring for Indian retail traders.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+/* ─────────── RESET ─────────── */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:#0f1117;color:#e6e9ef;line-height:1.7;font-size:16px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;overflow-x:hidden;text-rendering:optimizeLegibility}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+img,svg{display:block;max-width:100%}
+ul,ol{list-style:none}
+::selection{background:rgba(59,130,246,.3);color:#fff}
+
+/* ─────────── TOKENS ─────────── */
+:root{
+  --bg:#0f1117;--bg-elev:#14161f;--bg-card:#161922;--bg-card-2:#1a1d28;
+  --border:#232734;--border-soft:#1a1d27;--border-strong:#2d3142;
+  --text:#e6e9ef;--text-soft:#94a3b8;--text-dim:#64748b;--text-faint:#475569;
+  --accent:#3b82f6;--accent-hover:#2563eb;--accent-soft:rgba(59,130,246,.08);--accent-line:rgba(59,130,246,.3);
+  --green:#10b981;--green-bright:#34d399;--green-soft:rgba(16,185,129,.1);
+  --red:#ef4444;--red-bright:#f87171;--red-soft:rgba(239,68,68,.1);
+  --ease-quiet:cubic-bezier(.22,1,.36,1);
+  --container:1200px;--nav-h:64px;
+  --font-mono:'JetBrains Mono','SF Mono',Menlo,monospace;
+}
+
+/* ─────────── TYPE ─────────── */
+h1,h2,h3,h4{font-weight:600;line-height:1.1;letter-spacing:-.02em;color:var(--text)}
+p{color:var(--text-soft)}
+.label{font-family:var(--font-mono);font-size:.7rem;letter-spacing:.18em;text-transform:uppercase;color:var(--text-dim);font-weight:500}
+.eyebrow-tag{display:inline-flex;align-items:center;gap:.6rem;font-family:var(--font-mono);font-size:.72rem;letter-spacing:.15em;text-transform:uppercase;color:var(--text-soft);font-weight:500;padding:.45rem .9rem;border:1px solid var(--border);border-radius:999px;background:rgba(59,130,246,.04)}
+.eyebrow-tag::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent)}
+
+/* ─────────── LAYOUT ─────────── */
+.container{max-width:var(--container);margin:0 auto;padding:0 2rem}
+section{padding:8rem 0;position:relative}
+@media(max-width:768px){section{padding:5rem 0}.container{padding:0 1.5rem}}
+
+/* ─────────── NAV ─────────── */
+.navbar{position:fixed;top:0;left:0;right:0;z-index:100;height:var(--nav-h);display:flex;align-items:center;background:transparent;border-bottom:1px solid transparent;transition:background .4s var(--ease-quiet),border-color .4s var(--ease-quiet),backdrop-filter .4s var(--ease-quiet)}
+.navbar.scrolled{background:rgba(15,17,23,.72);backdrop-filter:blur(16px) saturate(180%);-webkit-backdrop-filter:blur(16px) saturate(180%);border-bottom-color:var(--border-soft)}
+.nav-inner{max-width:var(--container);margin:0 auto;padding:0 2rem;width:100%;display:flex;align-items:center;justify-content:space-between}
+.logo{display:inline-flex;align-items:center;gap:.6rem;font-weight:700;font-size:1rem;letter-spacing:-.01em;color:var(--text)}
+.logo-mark{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,#3b82f6,#1e3a8a);box-shadow:0 4px 12px rgba(59,130,246,.25)}
+.logo-mark svg{width:14px;height:14px}
+.logo-name{display:inline-flex;align-items:baseline;gap:.45rem}
+.logo-name small{font-family:var(--font-mono);font-size:.62rem;font-weight:500;letter-spacing:.14em;color:var(--text-dim);text-transform:uppercase}
+.nav-cta{display:inline-flex;align-items:center;gap:.45rem;font-size:.85rem;font-weight:500;padding:.55rem 1rem;border:1px solid var(--border);border-radius:8px;color:var(--text);background:var(--bg-card);transition:all .25s var(--ease-quiet)}
+.nav-cta:hover{border-color:var(--accent-line);background:var(--accent-soft);color:#fff}
+.nav-cta::after{content:'→';font-family:var(--font-mono);transition:transform .25s var(--ease-quiet)}
+.nav-cta:hover::after{transform:translateX(3px)}
+
+/* ─────────── BUTTONS ─────────── */
+.btn{display:inline-flex;align-items:center;gap:.55rem;font-size:.95rem;font-weight:500;padding:.85rem 1.4rem;border-radius:8px;border:1px solid transparent;transition:all .3s var(--ease-quiet);cursor:pointer;white-space:nowrap}
+.btn .arrow{font-family:var(--font-mono);transition:transform .3s var(--ease-quiet)}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-primary:hover{background:var(--accent-hover);border-color:var(--accent-hover);animation:btn-pulse 2.4s var(--ease-quiet) infinite}
+.btn-primary:hover .arrow{transform:translateX(4px)}
+@keyframes btn-pulse{0%,100%{box-shadow:0 0 0 0 rgba(59,130,246,.5)}50%{box-shadow:0 0 0 12px rgba(59,130,246,0)}}
+.btn-secondary{background:transparent;color:var(--text);border-color:var(--border)}
+.btn-secondary:hover{border-color:var(--border-strong);background:var(--bg-card)}
+.btn-secondary:hover .arrow{transform:translateY(3px)}
+
+/* ─────────── HERO ─────────── */
+.hero{padding-top:calc(var(--nav-h) + 6rem);padding-bottom:5rem;position:relative;overflow:hidden}
+.hero-bg{position:absolute;inset:0;pointer-events:none;z-index:0}
+.hero-bg::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 25% 30%,rgba(59,130,246,.08),transparent 50%),radial-gradient(circle at 80% 70%,rgba(59,130,246,.04),transparent 50%)}
+.hero-bg::after{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(35,39,52,.35) 1px,transparent 1px),linear-gradient(90deg,rgba(35,39,52,.35) 1px,transparent 1px);background-size:60px 60px;background-position:-1px -1px;-webkit-mask-image:radial-gradient(ellipse at center,#000 0%,transparent 70%);mask-image:radial-gradient(ellipse at center,#000 0%,transparent 70%)}
+.hero-inner{position:relative;z-index:1;max-width:var(--container);margin:0 auto;padding:0 2rem;display:grid;grid-template-columns:1fr 1fr;gap:5rem;align-items:center}
+@media(max-width:960px){.hero-inner{grid-template-columns:1fr;gap:4rem}}
+.hero-content{max-width:580px}
+.hero-headline{font-size:clamp(2.5rem,6vw,5rem);font-weight:700;line-height:1.02;letter-spacing:-.035em;margin:1.5rem 0 1.5rem;color:var(--text)}
+.hero-headline em{font-style:normal;color:var(--text);position:relative;display:inline-block}
+.hero-headline em::after{content:'';position:absolute;left:0;right:0;bottom:.05em;height:.08em;background:var(--accent);opacity:.6}
+.hero-sub{font-size:1.1rem;line-height:1.65;color:var(--text-soft);margin-bottom:2.5rem;max-width:520px}
+.hero-ctas{display:flex;gap:.75rem;flex-wrap:wrap}
+.hero-meta{margin-top:3.5rem;display:flex;gap:2.5rem;font-family:var(--font-mono);font-size:.75rem;color:var(--text-dim);flex-wrap:wrap}
+.hero-meta span{display:flex;flex-direction:column;gap:.25rem}
+.hero-meta strong{color:var(--text);font-size:1.4rem;font-weight:600;font-family:'Inter',sans-serif;letter-spacing:-.02em}
+
+/* ─────────── PAYOFF CANVAS ─────────── */
+.payoff-canvas{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:1.5rem;position:relative;box-shadow:0 30px 60px -20px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.02)}
+.payoff-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem;font-family:var(--font-mono);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase}
+.payoff-tag{color:var(--text-soft);font-weight:500}
+.payoff-status{display:inline-flex;align-items:center;gap:.4rem;color:var(--green-bright);font-weight:500}
+.payoff-status::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--green-bright);box-shadow:0 0 8px var(--green-bright);animation:status-blink 2.4s var(--ease-quiet) infinite}
+@keyframes status-blink{0%,100%{opacity:1}50%{opacity:.35}}
+.payoff-svg{width:100%;height:auto;display:block}
+.payoff-svg .grid-line{stroke:var(--border-soft);stroke-width:1;stroke-dasharray:2 6}
+.payoff-svg .grid-zero{stroke:var(--border-strong);stroke-width:1}
+.payoff-svg .axis-label{font-family:var(--font-mono);font-size:9px;fill:var(--text-faint);letter-spacing:.05em}
+.payoff-svg .strike-label{font-family:var(--font-mono);font-size:10px;fill:var(--text-dim);font-weight:500}
+.payoff-svg .strike-sub{font-family:var(--font-mono);font-size:7.5px;fill:var(--text-faint);letter-spacing:.1em}
+.payoff-svg .pnl-label{font-family:var(--font-mono);font-size:10px;font-weight:600;letter-spacing:.05em}
+.payoff-svg .pnl-label.profit{fill:var(--green-bright)}
+.payoff-svg .pnl-label.loss{fill:var(--red-bright)}
+.payoff-svg .spot-label{font-family:var(--font-mono);font-size:10px;fill:var(--accent);font-weight:600;letter-spacing:.05em}
+.payoff-svg .curve-segment{fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+
+/* Live Graph Animations */
+.payoff-svg .spot-group{animation:spot-jitter 4s ease-in-out infinite}
+@keyframes spot-jitter{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}50%{transform:translateX(3px)}75%{transform:translateX(-2px)}}
+
+.payoff-svg .curve-profit{stroke:var(--green-bright);stroke-dasharray:1;stroke-dashoffset:1;animation:draw 1.4s var(--ease-quiet) .8s forwards, curve-pulse 3s ease-in-out 2.5s infinite}
+@keyframes curve-pulse{0%,100%{filter:drop-shadow(0 0 4px rgba(52,211,153,.4))}50%{filter:drop-shadow(0 0 10px rgba(52,211,153,.7))}}
+
+.payoff-svg .curve-loss{stroke:var(--red-bright);stroke-dasharray:1;stroke-dashoffset:1;animation:draw 1.2s var(--ease-quiet) .2s forwards}
+.payoff-svg .curve-loss-right{stroke-dasharray:1;stroke-dashoffset:1;animation:draw 1.2s var(--ease-quiet) 1.8s forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+
+.payoff-svg .area-fill{opacity:0;animation:fade-in .8s var(--ease-quiet) 2.4s forwards}
+@keyframes fade-in{to{opacity:1}}
+
+.payoff-svg .annotation{opacity:0;animation:fade-in .6s var(--ease-quiet) 3.2s forwards;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.05em}
+.payoff-footer{margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border-soft);display:flex;justify-content:space-between;align-items:center;font-family:var(--font-mono);font-size:.75rem;color:var(--text-dim);flex-wrap:wrap;gap:1rem}
+.legend{display:flex;gap:1.2rem;align-items:center}
+.legend span{display:inline-flex;align-items:center;gap:.4rem}
+.legend-swatch{width:10px;height:10px;border-radius:2px}
+.legend-swatch.green{background:var(--green-bright);box-shadow:0 0 6px rgba(52,211,153,.4)}
+.legend-swatch.red{background:var(--red-bright);box-shadow:0 0 6px rgba(248,113,113,.4)}
+.payoff-stats{display:flex;gap:1.1rem}
+.payoff-stats span{color:var(--text-dim)}
+.payoff-stats strong{color:var(--text);font-weight:600;margin-left:.3rem;transition:color 0.2s}
+
+/* ─── HERO AI CHIP (Dynamic) ─── */
+.hero-ai-chip{position:absolute;background:rgba(15,17,23,.90);border:1px solid var(--accent-line);padding:.65rem .9rem;border-radius:8px;font-family:var(--font-mono);font-size:.7rem;color:var(--text);display:flex;align-items:center;gap:.6rem;box-shadow:0 10px 30px rgba(0,0,0,.5);backdrop-filter:blur(8px);opacity:0;transform:translateY(-10px);z-index:5;pointer-events:none}
+.hero-ai-chip.visible{animation:chip-in .5s var(--ease-quiet) forwards}
+.hero-ai-chip.hidden{animation:chip-out .5s var(--ease-quiet) forwards}
+.hero-ai-chip .ai-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent);animation:glow-pulse 1.5s var(--ease-quiet) infinite}
+.hero-ai-chip .ai-label{color:var(--accent);font-weight:600;letter-spacing:.1em}
+.hero-ai-chip .ai-breakdown{color:var(--text-soft)}
+.hero-ai-chip .ai-breakdown strong{color:var(--red-bright);font-weight:600}
+@keyframes chip-in{to{opacity:1;transform:translateY(0)}}
+@keyframes chip-out{to{opacity:0;transform:translateY(-10px)}}
+@keyframes glow-pulse{0%,100%{opacity:.3}50%{opacity:.7}}
+
+@media(max-width:768px){.hero-ai-chip{font-size:.6rem;padding:.5rem .7rem}}
+
+/* ─────────── PROBLEM (Visual Table) ─────────── */
+.problem{padding:6rem 0;border-top:1px solid var(--border-soft);border-bottom:1px solid var(--border-soft)}
+.problem-header{text-align:center;margin-bottom:4rem}
+.problem-header h2{font-size:clamp(1.5rem, 3vw, 2rem);font-weight:600;letter-spacing:-.02em}
+.ptable{max-width:1000px;margin:0 auto;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.ptable-row{display:grid;grid-template-columns:1fr 1.2fr 1.2fr;align-items:center;border-bottom:1px solid var(--border-soft)}
+.ptable-row:last-child{border-bottom:none}
+.ptable-head{background:var(--bg-card-2);font-family:var(--font-mono);font-size:.65rem;letter-spacing:.15em;text-transform:uppercase;color:var(--text-dim);padding:1rem 1.5rem}
+.ptable-cell{padding:1.5rem;font-size:.9rem;color:var(--text-soft);border-right:1px solid var(--border-soft)}
+.ptable-cell:last-child{border-right:none}
+.ptable-name{font-weight:600;color:var(--text);font-family:var(--font-mono);font-size:.85rem}
+.ptable-fix{color:var(--green-bright);font-weight:500}
+.ptable-icon{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;margin-right:.5rem;font-family:var(--font-mono);font-size:.7rem;vertical-align:middle}
+.ptable-icon.x{background:var(--red-soft);color:var(--red-bright);border:1px solid rgba(239,68,68,.2)}
+.ptable-icon.c{background:var(--green-soft);color:var(--green-bright);border:1px solid rgba(16,185,129,.2)}
+@media(max-width:768px){.ptable-row{grid-template-columns:1fr}.ptable-cell{border-right:none;border-bottom:1px solid var(--border-soft)}.ptable-head{display:none}.ptable-name{padding:1rem 1.5rem 0;background:var(--bg-card-2);border-bottom:1px solid var(--border-soft)}}
+
+/* ─────────── FEATURES ─────────── */
+.features{padding:10rem 0 6rem}
+.section-header{text-align:center;margin-bottom:6rem;max-width:760px;margin-left:auto;margin-right:auto;padding:0 2rem}
+.section-eyebrow{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);font-weight:500;margin-bottom:1rem;display:inline-block}
+.section-header h2{font-size:clamp(2rem,4vw,3rem);font-weight:700;letter-spacing:-.03em;line-height:1.1;margin-bottom:1.2rem}
+.section-header p{font-size:1.05rem;color:var(--text-soft);line-height:1.6}
+.feature-row{display:grid;grid-template-columns:1fr 1.1fr;gap:5rem;align-items:center;margin-bottom:8rem}
+.feature-row:last-child{margin-bottom:0}
+.feature-row.reverse{grid-template-columns:1.1fr 1fr}
+.feature-row.reverse .feature-text{order:2}
+@media(max-width:960px){.feature-row,.feature-row.reverse{grid-template-columns:1fr;gap:3rem;margin-bottom:6rem}.feature-row.reverse .feature-text{order:0}}
+.feature-num{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.18em;color:var(--text-dim);font-weight:500;margin-bottom:1.2rem}
+.feature-num span{color:var(--accent)}
+.feature-text h3{font-size:clamp(1.6rem,2.5vw,2.1rem);font-weight:600;line-height:1.15;letter-spacing:-.025em;margin-bottom:1.2rem;color:var(--text)}
+.feature-text p{font-size:1.02rem;line-height:1.65;color:var(--text-soft);margin-bottom:1.2rem}
+.feature-text p em{font-style:normal;color:var(--text);background:rgba(59,130,246,.06);padding:.05em .3em;border-radius:3px}
+
+/* ─── LEGS TABLE ─── */
+.legs-table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.legs-table{min-width:580px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;overflow:hidden;font-family:var(--font-mono);font-size:.8rem}
+.legs-header,.legs-row{display:grid;grid-template-columns:24px 50px 60px 50px 50px 60px 60px 60px 60px;gap:.5rem;padding:.75rem 1.1rem;align-items:center}
+.legs-header{background:var(--bg-card-2);border-bottom:1px solid var(--border);font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);font-weight:500}
+.legs-row{border-bottom:1px solid var(--border-soft);color:var(--text-soft)}
+.legs-row:last-child{border-bottom:none}
+.legs-row .leg-type{color:var(--text);font-weight:500}
+.legs-row .leg-type.call{color:var(--green-bright)}
+.legs-row .leg-type.put{color:var(--red-bright)}
+.legs-row .neg{color:var(--red-bright)}
+.legs-row .pos{color:var(--green-bright)}
+.legs-summary{padding:1rem 1.2rem;background:var(--bg-card-2);border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-size:.74rem;color:var(--text-dim);flex-wrap:wrap;gap:.6rem}
+.legs-summary .stat{display:inline-flex;align-items:center;gap:.4rem}
+.legs-summary .stat strong{color:var(--text);font-weight:600}
+.legs-summary .credit strong{color:var(--green-bright)}
+
+/* ─── ASSUMPTIONS (Visual Bars) ─── */
+.assumptions{display:grid;gap:.85rem}
+.assumption-card{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:1.2rem 1.4rem;display:grid;grid-template-columns:auto 1fr auto;gap:1.2rem;align-items:center;position:relative;transition:border-color .3s var(--ease-quiet)}
+.assumption-card.broken{border-color:rgba(239,68,68,.3);background:linear-gradient(180deg,rgba(239,68,68,.03),transparent)}
+.assumption-card.broken:hover{border-color:rgba(239,68,68,.5)}
+.assumption-card.healthy:hover{border-color:var(--border-strong)}
+.assumption-status{width:32px;height:32px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:.95rem;font-weight:600}
+.assumption-card.healthy .assumption-status{background:var(--green-soft);color:var(--green-bright);border:1px solid rgba(16,185,129,.3)}
+.assumption-card.broken .assumption-status{background:var(--red-soft);color:var(--red-bright);border:1px solid rgba(239,68,68,.3)}
+.assumption-body{display:flex;flex-direction:column;gap:.5rem;min-width:0}
+.assumption-title{font-size:.92rem;color:var(--text);font-weight:500;line-height:1.3}
+.assumption-bar{height:4px;background:var(--bg-card-2);border-radius:2px;overflow:hidden;position:relative}
+.assumption-bar::after{content:'';position:absolute;left:0;top:0;height:100%;border-radius:2px}
+.assumption-card.healthy .assumption-bar::after{width:80%;background:var(--green-bright);box-shadow:0 0 8px rgba(52,211,153,.4)}
+.assumption-card.broken .assumption-bar::after{width:15%;background:var(--red-bright);box-shadow:0 0 8px rgba(248,113,113,.4)}
+.assumption-meta{font-family:var(--font-mono);font-size:.7rem;color:var(--text-dim);display:flex;justify-content:space-between}
+.assumption-card.broken .assumption-meta span:last-child{color:var(--red-bright)}
+.assumption-tag{font-family:var(--font-mono);font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);padding:.32rem .6rem;border:1px solid var(--border);border-radius:4px;white-space:nowrap}
+.assumption-card.broken .assumption-tag{color:var(--red-bright);border-color:rgba(239,68,68,.3);background:var(--red-soft)}
+.assumption-card.healthy .assumption-tag{color:var(--green-bright);border-color:rgba(16,185,129,.2);background:var(--green-soft)}
+
+/* ─── HEATMAP ─── */
+.heatmap{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:1.5rem}
+.heatmap-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;font-family:var(--font-mono);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim)}
+.heatmap-grid{display:grid;grid-template-columns:60px repeat(7,1fr);gap:4px;margin-bottom:.5rem}
+.heatmap-cell{aspect-ratio:1.15;border-radius:4px;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:.72rem;font-weight:600;color:rgba(255,255,255,.9);position:relative;transition:transform .2s var(--ease-quiet);cursor:default}
+.heatmap-cell:hover{transform:scale(1.1);z-index:2}
+.heatmap-cell.row-label,.heatmap-cell.col-label{background:transparent!important;color:var(--text-dim);font-size:.66rem;font-weight:500}
+.heatmap-cell.col-label{aspect-ratio:auto;padding:.3rem 0}
+.heatmap-cell.row-label{aspect-ratio:auto;display:flex;align-items:center;justify-content:flex-end;padding-right:.4rem}
+.heatmap-cell.corner{background:transparent!important;aspect-ratio:auto;display:flex;align-items:center;justify-content:center;font-size:.55rem!important;color:var(--text-faint);text-align:center;line-height:1.2}
+.heatmap-axis-label{margin-top:.8rem;display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:.65rem;color:var(--text-dim);letter-spacing:.1em;text-transform:uppercase;padding:0 .5rem}
+
+/* ─── AI BUBBLE ─── */
+.ai-bubble{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;overflow:hidden;position:relative}
+.ai-bubble::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--red-bright),transparent);opacity:.6}
+.ai-bubble-header{padding:1rem 1.3rem;border-bottom:1px solid var(--border-soft);display:flex;align-items:center;gap:.7rem;font-family:var(--font-mono);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);flex-wrap:wrap}
+.ai-bubble-header .alert-dot{width:8px;height:8px;border-radius:50%;background:var(--red-bright);box-shadow:0 0 8px var(--red-bright);animation:status-blink 2s var(--ease-quiet) infinite}
+.ai-bubble-header .timestamp{margin-left:auto;color:var(--text-dim)}
+.ai-bubble-body{padding:1.4rem 1.3rem 1rem}
+.ai-bubble-body p{font-size:.93rem;line-height:1.65;color:var(--text);margin-bottom:.9rem}
+.ai-bubble-body p:last-child{margin-bottom:0;color:var(--text-soft);font-size:.85rem}
+.ai-bubble-body .mech{font-family:var(--font-mono);font-size:.82rem;color:var(--text);background:var(--bg-card-2);padding:.2rem .5rem;border-radius:4px;border-left:2px solid var(--accent);display:inline-block;margin:0 .1rem;font-weight:500}
+.ai-bubble-body .mech.danger{color:var(--red-bright);border-color:var(--red-bright);background:var(--red-soft)}
+.ai-actions{padding:0 1.3rem 1.3rem;display:flex;gap:.6rem;flex-wrap:wrap}
+.ai-action{font-family:var(--font-mono);font-size:.72rem;padding:.5rem .8rem;border:1px solid var(--border);border-radius:6px;color:var(--text-soft);background:var(--bg-card-2);transition:all .25s var(--ease-quiet);cursor:pointer}
+.ai-action:hover{border-color:var(--accent-line);color:var(--text);background:var(--accent-soft)}
+.ai-bubble-footer{padding:.85rem 1.3rem;background:var(--bg-card-2);border-top:1px solid var(--border-soft);display:flex;gap:1.2rem;font-family:var(--font-mono);font-size:.72rem;color:var(--text-dim);flex-wrap:wrap;align-items:center}
+.ai-bubble-footer span strong{color:var(--text);font-weight:600;margin-left:.3rem}
+.ai-bubble-footer .verify{margin-left:auto;color:var(--text-faint);font-size:.65rem;display:inline-flex;align-items:center;gap:.4rem}
+.ai-bubble-footer .verify::before{content:'✓';color:var(--green-bright);font-weight:700}
+
+/* ─────────── ARCHITECTURE (Visual Flow) ─────────── */
+.architecture{padding:8rem 0;border-top:1px solid var(--border-soft);background:linear-gradient(180deg,transparent,rgba(20,22,31,.4))}
+.arch-header{text-align:center;max-width:720px;margin:0 auto 4rem;padding:0 2rem}
+.arch-header h2{font-size:clamp(1.6rem,3vw,2.3rem);font-weight:600;letter-spacing:-.02em;margin-bottom:.8rem}
+.arch-header p{color:var(--text-soft);font-size:1rem}
+.arch-flow{display:grid;grid-template-columns:1fr 80px 1fr 80px 1fr;gap:0;align-items:center;max-width:1100px;margin:0 auto}
+@media(max-width:900px){.arch-flow{grid-template-columns:1fr;gap:1rem}.arch-connector{display:none}}
+.arch-box{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:2rem 1.5rem;text-align:center;position:relative;transition:border-color .3s var(--ease-quiet);height:100%}
+.arch-box:hover{border-color:var(--accent-line)}
+.arch-box-num{font-family:var(--font-mono);font-size:.62rem;letter-spacing:.18em;color:var(--accent);text-transform:uppercase;font-weight:500;margin-bottom:.9rem}
+.arch-box-icon{width:46px;height:46px;margin:0 auto 1rem;border-radius:10px;background:var(--accent-soft);border:1px solid var(--accent-line);display:flex;align-items:center;justify-content:center;color:var(--accent);font-family:var(--font-mono);font-weight:700;font-size:1.2rem}
+.arch-box h4{font-size:1.1rem;font-weight:600;margin-bottom:.6rem;color:var(--text)}
+.arch-box p{font-size:.85rem;color:var(--text-soft);line-height:1.55}
+.arch-connector{height:1px;background:var(--border);position:relative;width:100%}
+.arch-connector::after{content:'';position:absolute;top:50%;left:0;width:6px;height:6px;border-radius:50%;background:var(--accent);transform:translateY(-50%);box-shadow:0 0 8px var(--accent);animation:flow 2s var(--ease-quiet) infinite}
+@keyframes flow{0%{left:0;opacity:1}100%{left:100%;opacity:0}}
+.arch-note{text-align:center;margin-top:3rem;font-family:var(--font-mono);font-size:.78rem;color:var(--text-dim);letter-spacing:.05em}
+.arch-note strong{color:var(--green-bright);font-weight:500}
+
+/* ─────────── COMPLIANCE (Visual Shield) ─────────── */
+.compliance{padding:8rem 0;border-top:1px solid var(--border-soft)}
+.compliance-inner{max-width:800px;margin:0 auto;text-align:center;padding:0 2rem;display:grid;grid-template-columns:120px 1fr;gap:3rem;align-items:center}
+@media(max-width:768px){.compliance-inner{grid-template-columns:1fr;gap:2rem}}
+.compliance-seal{width:120px;height:120px;margin:0 auto;position:relative}
+.compliance-seal svg{width:100%;height:100%}
+.compliance-text{text-align:left}
+@media(max-width:768px){.compliance-text{text-align:center}}
+.compliance h2{font-size:clamp(1.6rem,3vw,2.2rem);font-weight:600;letter-spacing:-.02em;margin-bottom:1rem}
+.compliance p{font-size:1.05rem;color:var(--text-soft);line-height:1.7}
+.compliance-pillars{margin-top:2rem;display:flex;gap:1.5rem;font-family:var(--font-mono);font-size:.75rem;color:var(--text-dim);flex-wrap:wrap}
+.compliance-pillar{display:flex;align-items:center;gap:.5rem}
+.compliance-pillar::before{content:'✓';color:var(--green-bright);font-weight:700}
+
+/* ─────────── DEMO CTA ─────────── */
+.demo-cta{padding:8rem 0}
+.demo-card{max-width:980px;margin:0 auto;padding:5rem 3rem;background:var(--bg-card);border:1px solid var(--border);border-radius:20px;text-align:center;position:relative;overflow:hidden}
+.demo-card::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at center top,rgba(59,130,246,.1),transparent 60%);pointer-events:none}
+.demo-card::after{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(59,130,246,.5),transparent)}
+.demo-card>*{position:relative}
+.demo-card .label{margin-bottom:1.5rem;color:var(--accent)}
+.demo-card h2{font-size:clamp(2rem,5vw,3.4rem);font-weight:700;letter-spacing:-.03em;line-height:1.05;margin-bottom:1.2rem}
+.demo-card p{font-size:1.1rem;color:var(--text-soft);margin-bottom:2.5rem;max-width:480px;margin-left:auto;margin-right:auto}
+.demo-meta{margin-top:2.5rem;display:flex;justify-content:center;gap:2rem;font-family:var(--font-mono);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);flex-wrap:wrap}
+.demo-meta span{display:inline-flex;align-items:center;gap:.45rem}
+.demo-meta span::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--green-bright);box-shadow:0 0 6px var(--green-bright)}
+
+/* ─────────── FOOTER ─────────── */
+footer{border-top:1px solid var(--border-soft);padding:2.5rem 0;background:var(--bg-elev)}
+.footer-inner{max-width:var(--container);margin:0 auto;padding:0 2rem;display:grid;grid-template-columns:1fr 1fr 1fr;gap:2rem;align-items:center}
+@media(max-width:720px){.footer-inner{grid-template-columns:1fr;text-align:center;gap:1.5rem}}
+.footer-left{display:flex;flex-direction:column;gap:.3rem}
+@media(max-width:720px){.footer-left{align-items:center}}
+.footer-brand{font-weight:600;color:var(--text);font-size:.95rem}
+.footer-tag{font-family:var(--font-mono);font-size:.7rem;color:var(--text-dim);letter-spacing:.05em}
+.footer-center{text-align:center;font-family:var(--font-mono);font-size:.75rem;color:var(--text-dim)}
+.footer-right{text-align:right}
+@media(max-width:720px){.footer-right{text-align:center}}
+.footer-cta{display:inline-flex;align-items:center;gap:.4rem;font-size:.88rem;font-weight:500;color:var(--text);padding:.6rem 1.1rem;border:1px solid var(--border);border-radius:8px;transition:all .25s var(--ease-quiet)}
+.footer-cta:hover{border-color:var(--accent);background:var(--accent-soft);color:#fff}
+.footer-cta::after{content:'→';font-family:var(--font-mono);transition:transform .25s var(--ease-quiet)}
+.footer-cta:hover::after{transform:translateX(3px)}
+
+/* ─────────── ANIMATIONS ─────────── */
+.fade-up{opacity:0;transform:translateY(28px);transition:opacity .9s var(--ease-quiet),transform .9s var(--ease-quiet)}
+.fade-up.in-view{opacity:1;transform:translateY(0)}
+.fade-up-delay-1{transition-delay:.1s}
+.fade-up-delay-2{transition-delay:.2s}
+.fade-up-delay-3{transition-delay:.3s}
+
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
+  .fade-up{opacity:1;transform:none}
+  .payoff-svg .curve-segment{stroke-dashoffset:0!important}
+  .payoff-svg .area-fill,.payoff-svg .annotation,.hero-ai-chip{opacity:1!important;transform:none!important}
+  .payoff-svg .spot-group{animation:none!important}
+}
+
+@media(max-width:768px){
+  .hero-meta{gap:1.5rem}
+  .hero-meta strong{font-size:1.15rem}
+  .heatmap-grid{grid-template-columns:42px repeat(7,1fr);gap:2px}
+  .heatmap-cell{font-size:.58rem}
+  .heatmap-cell.corner{font-size:.5rem!important}
+  .demo-card{padding:3rem 1.5rem}
+  .nav-inner{padding:0 1.5rem}
+  .logo-name small{display:none}
+}
+</style>
+</head>
+<body>
+
+<nav class="navbar" id="navbar">
+  <div class="nav-inner">
+    <a href="#" class="logo" aria-label="MoneyLogix home">
+      <span class="logo-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M2 17 L7 17 L10 7 L14 7 L17 17 L22 17" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <span class="logo-name">MoneyLogix <small>Strategy Builder</small></span>
+    </a>
+    <a href="http://localhost:5173" class="nav-cta" aria-label="Launch MoneyLogix app">Launch App</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-bg" aria-hidden="true"></div>
+  <div class="hero-inner">
+    <div class="hero-content">
+      <span class="eyebrow-tag">AI-Native Platform for Indian Options Traders</span>
+      <h1 class="hero-headline">Your strategy doesn't end at <em>entry</em>.</h1>
+      <p class="hero-sub">An AI-native platform that monitors positions in real time — explaining exactly when assumptions break. Grounded in Black-Scholes. Zero hallucinations.</p>
+      <div class="hero-ctas">
+        <a href="http://localhost:5173" class="btn btn-primary">Launch Platform <span class="arrow">→</span></a>
+        <a href="#demo" class="btn btn-secondary">View Demo <span class="arrow">↓</span></a>
+      </div>
+      <div class="hero-meta">
+        <span><strong>AI-Native</strong>Black-Scholes grounded</span>
+        <span><strong>35</strong>stress scenarios</span>
+        <span><strong>0</strong>hallucinated figures</span>
+      </div>
+    </div>
+
+    <div class="hero-visual">
+      <div class="payoff-canvas">
+        <div class="payoff-header">
+          <span class="payoff-tag">IRON CONDOR · NIFTY · 25 JUN</span>
+          <span class="payoff-status">LIVE</span>
+        </div>
+        
+        <div class="hero-ai-chip" id="aiChip">
+          <span class="ai-dot"></span>
+          <span class="ai-label">AI:</span>
+          <span class="ai-breakdown" id="aiBreakdown">Vega crush <strong>-₹8/pt</strong>, Δ <strong>-0.31</strong></span>
+        </div>
+
+        <svg class="payoff-svg" viewBox="0 0 800 400" preserveAspectRatio="xMidYMid meet" aria-label="Iron Condor payoff curve showing profit and loss zones across Nifty spot prices">
+          <g>
+            <line class="grid-line" x1="40" y1="30" x2="780" y2="30"/>
+            <line class="grid-line" x1="40" y1="90" x2="780" y2="90"/>
+            <line class="grid-zero" x1="40" y1="150" x2="780" y2="150"/>
+            <line class="grid-line" x1="40" y1="210" x2="780" y2="210"/>
+            <line class="grid-line" x1="40" y1="270" x2="780" y2="270"/>
+            <line class="grid-line" x1="40" y1="330" x2="780" y2="330"/>
+            <line class="grid-line" x1="171.4" y1="20" x2="171.4" y2="340"/>
+            <line class="grid-line" x1="285.7" y1="20" x2="285.7" y2="340"/>
+            <line class="grid-line" x1="400" y1="20" x2="400" y2="340"/>
+            <line class="grid-line" x1="514.3" y1="20" x2="514.3" y2="340"/>
+            <line class="grid-line" x1="628.6" y1="20" x2="628.6" y2="340"/>
+          </g>
+          <text x="34" y="34" text-anchor="end" class="axis-label">+5K</text>
+          <text x="34" y="94" text-anchor="end" class="axis-label">+2.5K</text>
+          <text x="34" y="154" text-anchor="end" class="axis-label" style="fill:var(--text-soft)">±0</text>
+          <text x="34" y="214" text-anchor="end" class="axis-label">-2.5K</text>
+          <text x="34" y="274" text-anchor="end" class="axis-label">-5K</text>
+          <text x="34" y="334" text-anchor="end" class="axis-label">-7K</text>
+          <path class="area-fill" d="M 228.6,150 L 285.7,30 L 514.3,30 L 560,150 Z" fill="rgba(52,211,153,.08)"/>
+          <path class="area-fill" d="M 40,150 L 228.6,150 L 171.4,330 L 40,330 Z" fill="rgba(248,113,113,.08)"/>
+          <path class="area-fill" d="M 560,150 L 780,150 L 780,330 L 628.6,330 Z" fill="rgba(248,113,153,.08)"/>
+          
+          <g class="spot-group">
+            <line class="spot-line" x1="400" y1="20" x2="400" y2="340" stroke="var(--accent)" stroke-width="1" stroke-dasharray="3 4" opacity="0.8"/>
+            <circle class="spot-glow" cx="400" cy="30" r="9" fill="rgba(59,130,246,.25)"/>
+            <circle class="spot-dot" cx="400" cy="30" r="4" fill="var(--accent)"/>
+            <text x="400" y="12" text-anchor="middle" class="spot-label">SPOT 235.40</text>
+          </g>
+          
+          <path class="curve-segment curve-loss" d="M 40,330 L 171.4,330 L 228.6,150" pathLength="1" stroke="var(--red-bright)"/>
+          <path class="curve-segment curve-profit" d="M 228.6,150 L 285.7,30 L 514.3,30 L 560,150" pathLength="1" stroke="var(--green-bright)"/>
+          <path class="curve-segment curve-loss curve-loss-right" d="M 560,150 L 628.6,330 L 780,330" pathLength="1" stroke="var(--red-bright)"/>
+          
+          <text x="400" y="22" text-anchor="middle" class="annotation pnl-label profit">MAX PROFIT +₹4.0K</text>
+          <text x="228.6" y="142" text-anchor="middle" class="annotation" style="fill:var(--text-dim);">B/E 221</text>
+          <text x="560" y="142" text-anchor="middle" class="annotation" style="fill:var(--text-dim);">B/E 249</text>
+          
+          <g>
+            <line x1="171.4" y1="335" x2="171.4" y2="345" stroke="#475569" stroke-width="1"/>
+            <line x1="285.7" y1="335" x2="285.7" y2="345" stroke="#475569" stroke-width="1"/>
+            <line x1="514.3" y1="335" x2="514.3" y2="345" stroke="#475569" stroke-width="1"/>
+            <line x1="628.6" y1="335" x2="628.6" y2="345" stroke="#475569" stroke-width="1"/>
+            <text x="171.4" y="360" text-anchor="middle" class="strike-label">215</text>
+            <text x="285.7" y="360" text-anchor="middle" class="strike-label">225</text>
+            <text x="514.3" y="360" text-anchor="middle" class="strike-label">245</text>
+            <text x="628.6" y="360" text-anchor="middle" class="strike-label">255</text>
+            <text x="171.4" y="373" text-anchor="middle" class="strike-sub">LONG PUT</text>
+            <text x="285.7" y="373" text-anchor="middle" class="strike-sub">SHORT PUT</text>
+            <text x="514.3" y="373" text-anchor="middle" class="strike-sub">SHORT CALL</text>
+            <text x="628.6" y="373" text-anchor="middle" class="strike-sub">LONG CALL</text>
+          </g>
+          <text x="410" y="395" text-anchor="middle" class="axis-label" style="letter-spacing:.15em;">NIFTY SPOT AT EXPIRY →</text>
+        </svg>
+        
+        <div class="payoff-footer">
+          <div class="legend">
+            <span><span class="legend-swatch green"></span>Profit zone</span>
+            <span><span class="legend-swatch red"></span>Loss zone</span>
+          </div>
+          <div class="payoff-stats" id="payoffStats">
+            <span>Δ<strong id="statDelta">+0.02</strong></span>
+            <span>θ<strong id="statTheta" style="color:var(--green-bright)">+32.4</strong></span>
+            <span>ν<strong id="statVega" style="color:var(--red-bright)">-8.1</strong></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="problem">
+  <div class="container">
+    <div class="problem-header fade-up">
+      <h2>The state of options tooling in India.</h2>
+    </div>
+    <div class="ptable fade-up">
+      <div class="ptable-row ptable-head">
+        <div>Platform</div>
+        <div>Lifecycle Threshold</div>
+        <div>MoneyLogix Override</div>
+      </div>
+      <div class="ptable-row">
+        <div class="ptable-cell ptable-name">Sensibull</div>
+        <div class="ptable-cell"><span class="ptable-icon x">✕</span>Stops after construction</div>
+        <div class="ptable-cell ptable-fix"><span class="ptable-icon c">✓</span>Full lifecycle tracking</div>
+      </div>
+      <div class="ptable-row">
+        <div class="ptable-cell ptable-name">Opstra</div>
+        <div class="ptable-cell"><span class="ptable-icon x">✕</span>Gives data, not insight</div>
+        <div class="ptable-cell ptable-fix"><span class="ptable-icon c">✓</span>AI explains the mechanical reason</div>
+      </div>
+      <div class="ptable-row">
+        <div class="ptable-cell ptable-name">OptionStrat</div>
+        <div class="ptable-cell"><span class="ptable-icon x">✕</span>No India market awareness</div>
+        <div class="ptable-cell ptable-fix"><span class="ptable-icon c">✓</span>Native NSE integration & logic</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="features" id="features">
+  <div class="section-header fade-up">
+    <span class="section-eyebrow">THE PLATFORM</span>
+    <h2>From construction to monitoring, in one tool.</h2>
+  </div>
+
+  <div class="container">
+    <!-- FEATURE 1 -->
+    <div class="feature-row fade-up">
+      <div class="feature-text">
+        <div class="feature-num"><span>01</span> / STRATEGY CONSTRUCTION</div>
+        <h3>Build any multi-leg strategy. Greeks and payoff update instantly.</h3>
+        <p>Iron Condor, Straddle, custom. Drag legs, see Δ Γ θ ν recompute on every keystroke.</p>
+      </div>
+      <div class="feature-visual">
+        <div class="legs-table-scroll">
+          <div class="legs-table">
+            <div class="legs-header">
+              <span>#</span><span>TYPE</span><span>STRIKE</span><span>EXP</span><span>QTY</span><span>LTP</span><span>Δ</span><span>Γ</span><span>θ</span>
+            </div>
+            <div class="legs-row">
+              <span>1</span><span class="leg-type put">PUT</span><span>215</span><span>25J</span><span class="neg">-75</span><span>2.40</span><span class="neg">-0.18</span><span>0.004</span><span class="pos">+0.8</span>
+            </div>
+            <div class="legs-row">
+              <span>2</span><span class="leg-type put">PUT</span><span>225</span><span>25J</span><span class="pos">+75</span><span>4.10</span><span class="pos">+0.31</span><span>0.006</span><span class="neg">-1.2</span>
+            </div>
+            <div class="legs-row">
+              <span>3</span><span class="leg-type call">CALL</span><span>245</span><span>25J</span><span class="pos">+75</span><span>3.80</span><span class="neg">-0.29</span><span>0.006</span><span class="neg">-1.1</span>
+            </div>
+            <div class="legs-row">
+              <span>4</span><span class="leg-type call">CALL</span><span>255</span><span>25J</span><span class="neg">-75</span><span>1.90</span><span class="pos">+0.16</span><span>0.004</span><span class="pos">+0.7</span>
+            </div>
+            <div class="legs-summary">
+              <span class="stat">NET Δ <strong>+0.00</strong></span>
+              <span class="stat">NET θ <strong style="color:var(--green-bright)">+32.4</strong></span>
+              <span class="stat">NET ν <strong style="color:var(--red-bright)">-8.1</strong></span>
+              <span class="stat credit">CREDIT <strong>+₹4,875</strong></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FEATURE 2 -->
+    <div class="feature-row reverse fade-up">
+      <div class="feature-text">
+        <div class="feature-num"><span>02</span> / ASSUMPTION DASHBOARD</div>
+        <h3>We check your entry assumptions continuously.</h3>
+        <p>We track each assumption in real time — and tell you exactly when one breaks. Before P&L tells you.</p>
+      </div>
+      <div class="feature-visual">
+        <div class="assumptions">
+          <div class="assumption-card healthy">
+            <span class="assumption-status">✓</span>
+            <div class="assumption-body">
+              <div class="assumption-title">IV stays above 12%</div>
+              <div class="assumption-bar"></div>
+              <div class="assumption-meta"><span>Currently 14.2%</span><span>Margin 2.2 pts</span></div>
+            </div>
+            <span class="assumption-tag">Healthy</span>
+          </div>
+          <div class="assumption-card healthy">
+            <span class="assumption-status">✓</span>
+            <div class="assumption-body">
+              <div class="assumption-title">Spot pins between 230 and 240</div>
+              <div class="assumption-bar"></div>
+              <div class="assumption-meta"><span>Currently 235.40</span><span>In range</span></div>
+            </div>
+            <span class="assumption-tag">Healthy</span>
+          </div>
+          <div class="assumption-card broken">
+            <span class="assumption-status">!</span>
+            <div class="assumption-body">
+              <div class="assumption-title">No breakout above 248</div>
+              <div class="assumption-bar"></div>
+              <div class="assumption-meta"><span>Currently 247.80</span><span>0.20 from break</span></div>
+            </div>
+            <span class="assumption-tag">Breaking</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FEATURE 3 -->
+    <div class="feature-row fade-up">
+      <div class="feature-text">
+        <div class="feature-num"><span>03</span> / STRESS TEST</div>
+        <h3>35 simultaneous scenarios. Not just expiry payoff.</h3>
+        <p>See P&L across every spot × IV combination. You see the dangerous corners, not just the centre.</p>
+      </div>
+      <div class="feature-visual">
+        <div class="heatmap">
+          <div class="heatmap-header">
+            <span>P&L HEATMAP · IRON CONDOR</span>
+            <span style="color:var(--text-soft);">INR · LOT 75</span>
+          </div>
+          <div class="heatmap-grid" id="heatmapGrid"></div>
+          <div class="heatmap-axis-label">
+            <span>← IV shock</span>
+            <span>spot shock →</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FEATURE 4 -->
+    <div class="feature-row reverse fade-up">
+      <div class="feature-text">
+        <div class="feature-num"><span>04</span> / AI EXPLANATION LAYER</div>
+        <h3>The AI explains the mechanical reason.</h3>
+        <p>Not "your P&L dropped" — but <em>Delta flipped to -0.31. Theta cannot offset vega crush.</em> Grounded in Black-Scholes.</p>
+      </div>
+      <div class="feature-visual">
+        <div class="ai-bubble">
+          <div class="ai-bubble-header">
+            <span class="alert-dot"></span>
+            ASSUMPTION BREAK · 14:32:07
+            <span class="timestamp">NIFTY 247.80</span>
+          </div>
+          <div class="ai-bubble-body">
+            <p>Spot broke above breakeven at <span class="mech">249</span>. Short <span class="mech">245-call</span> is <span class="mech danger">2.4 ITM</span>.</p>
+            <p>Delta flipped to <span class="mech danger">-0.31</span>. Theta (+₹32) cannot offset vega crush (-₹8/pt) and directional move.</p>
+          </div>
+          <div class="ai-actions">
+            <a class="ai-action" href="http://localhost:5173">→ Roll call spread</a>
+            <a class="ai-action" href="http://localhost:5173">→ Add long 250-call</a>
+            <a class="ai-action" href="http://localhost:5173">→ Close position</a>
+          </div>
+          <div class="ai-bubble-footer">
+            <span>Δ<strong>-0.31</strong></span>
+            <span>θ<strong>+32.4</strong></span>
+            <span>ν<strong>-8.1</strong></span>
+            <span class="verify">computed via Black-Scholes</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="architecture">
+  <div class="arch-header fade-up">
+    <h2>Three engines. One loop.</h2>
+    <p>Every number the AI states was computed by Black-Scholes. Zero hallucinated figures.</p>
+  </div>
+  <div class="container">
+    <div class="arch-flow fade-up">
+      <div class="arch-box">
+        <div class="arch-box-num">ENGINE 01</div>
+        <div class="arch-box-icon">∂</div>
+        <h4>Quant Engine</h4>
+        <p>Black-Scholes pricing, full Greek surface. Recomputes every tick.</p>
+      </div>
+      <div class="arch-connector"></div>
+      <div class="arch-box">
+        <div class="arch-box-num">ENGINE 02</div>
+        <div class="arch-box-icon">∞</div>
+        <h4>Lifecycle Engine</h4>
+        <p>Tracks assumptions, monitors spot/IV, runs 35 stress scenarios.</p>
+      </div>
+      <div class="arch-connector"></div>
+      <div class="arch-box">
+        <div class="arch-box-num">ENGINE 03</div>
+        <div class="arch-box-icon">∇</div>
+        <h4>AI Explanation Layer</h4>
+        <p>Translates mechanical state into plain English. Never invents data.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="compliance">
+  <div class="compliance-inner fade-up">
+    <div class="compliance-seal">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <path d="M50,5 L90,25 L90,65 L50,95 L10,65 L10,25 Z" fill="none" stroke="#2d3142" stroke-width="1.5"/>
+        <path d="M50,15 L80,30 L80,60 L50,80 L20,60 L20,30 Z" fill="rgba(59,130,246,.04)" stroke="#232734" stroke-width="1"/>
+        <text x="50" y="45" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="9" fill="#3b82f6" letter-spacing="1.5">SEBI</text>
+        <text x="50" y="60" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="7" fill="#94a3b8" letter-spacing="1">COMPLIANT</text>
+      </svg>
+    </div>
+    <div class="compliance-text">
+      <h2>Compliant by Design.</h2>
+      <p>No investment recommendations. No predictions. The user always decides. The platform always explains.</p>
+      <div class="compliance-pillars">
+        <span class="compliance-pillar">No recommendations</span>
+        <span class="compliance-pillar">No predictions</span>
+        <span class="compliance-pillar">Full transparency</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="demo-cta" id="demo">
+  <div class="container">
+    <div class="demo-card fade-up">
+      <span class="label">LIVE DEMO</span>
+      <h2>See it live in 2 minutes.</h2>
+      <p>No login. No signup. Runs locally — your positions, your machine, your data.</p>
+      <a href="http://localhost:5173" class="btn btn-primary">Launch Platform <span class="arrow">→</span></a>
+      <div class="demo-meta">
+        <span>No login</span>
+        <span>No signup</span>
+        <span>Local-first</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-left">
+      <span class="footer-brand">MoneyLogix Strategy Builder</span>
+      <span class="footer-tag">v0.1 · Black-Scholes native</span>
+    </div>
+    <div class="footer-center">
+      Built for MoneyLogix Internship Hackathon 2026
+    </div>
+    <div class="footer-right">
+      <a href="http://localhost:5173" class="footer-cta">Launch App</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  'use strict';
+  const navbar = document.getElementById('navbar');
+  let ticking = false;
+  function onScroll(){
+    if (!ticking) {
+      window.requestAnimationFrame(()=>{
+        if (window.scrollY > 20) navbar.classList.add('scrolled');
+        else navbar.classList.remove('scrolled');
+        ticking = false;
+      });
+      ticking = true;
+    }
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+
+  // ── Intersection Observer ─────────────────────────
+  if ('IntersectionObserver' in window) {
+    const observer = new IntersectionObserver((entries)=>{
+      entries.forEach(entry=>{
+        if (entry.isIntersecting) {
+          entry.target.classList.add('in-view');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -60px 0px' });
+    document.querySelectorAll('.fade-up').forEach(el=>observer.observe(el));
+  } else {
+    document.querySelectorAll('.fade-up').forEach(el=>el.classList.add('in-view'));
+  }
+
+  // ── Heatmap builder ─────────────────────────────
+  function buildHeatmap(){
+    const grid = document.getElementById('heatmapGrid');
+    if (!grid) return;
+    const spotMoves = ['-6%','-4%','-2%','0%','+2%','+4%','+6%'];
+    const ivMoves = ['+30%','+15%','0%','-15%','-30%'];
+    const pnl = [
+      [-7.2,-4.8,-1.5, 1.5,-1.2,-4.5,-7.0],
+      [-6.8,-4.2,-0.8, 2.8,-0.5,-3.8,-6.4],
+      [-6.2,-3.5, 0.5, 4.0, 0.5,-3.5,-6.2],
+      [-5.5,-2.8, 1.8, 5.2, 1.8,-2.8,-5.5],
+      [-4.8,-1.8, 3.2, 6.2, 3.2,-1.8,-4.8]
+    ];
+    const corner = document.createElement('div');
+    corner.className = 'heatmap-cell corner';
+    corner.innerHTML = 'spot →<br>IV ↓';
+    grid.appendChild(corner);
+    spotMoves.forEach(s=>{
+      const c = document.createElement('div');
+      c.className = 'heatmap-cell col-label';
+      c.textContent = s;
+      grid.appendChild(c);
+    });
+    pnl.forEach((row, rIdx)=>{
+      const rowLabel = document.createElement('div');
+      rowLabel.className = 'heatmap-cell row-label';
+      rowLabel.textContent = ivMoves[rIdx];
+      grid.appendChild(rowLabel);
+      row.forEach((val, cIdx)=>{
+        const cell = document.createElement('div');
+        cell.className = 'heatmap-cell';
+        const abs = Math.abs(val);
+        const alpha = Math.min(0.95, 0.18 + (abs/7) * 0.77);
+        if (val >= 0) {
+          cell.style.background = `rgba(16,185,129,${alpha})`;
+          cell.style.color = val > 3 ? '#0a2418' : 'rgba(255,255,255,.92)';
+        } else {
+          cell.style.background = `rgba(239,68,68,${alpha})`;
+          cell.style.color = val < -5 ? '#fff' : 'rgba(255,255,255,.92)';
+        }
+        cell.textContent = (val >= 0 ? '+' : '') + val.toFixed(1);
+        grid.appendChild(cell);
+      });
+    });
+  }
+  buildHeatmap();
+
+  // ── Smooth scroll for in-page anchors ───────────
+  document.querySelectorAll('a[href^="#"]').forEach(anchor=>{
+    anchor.addEventListener('click', function(e){
+      const targetId = this.getAttribute('href');
+      if (targetId === '#' || targetId.length < 2) return;
+      const target = document.querySelector(targetId);
+      if (target) {
+        e.preventDefault();
+        const offset = 64;
+        const top = target.getBoundingClientRect().top + window.scrollY - offset;
+        window.scrollTo({ top, behavior: 'smooth' });
+      }
+    });
+  });
+
+  // ── Dynamic AI Chip & Live Graph Stats ───────────
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  
+  if (!reduceMotion) {
+    const aiChip = document.getElementById('aiChip');
+    const aiBreakdown = document.getElementById('aiBreakdown');
+    
+    const aiMessages = [
+      'Vega crush <strong>-₹8/pt</strong>, Δ <strong>-0.31</strong>',
+      'Theta decay <strong>+₹32/d</strong>, ν <strong>-8.1</strong>',
+      'Gamma spike <strong>+0.04</strong>, Δ <strong>+0.15</strong>',
+      'IV crush <strong>-2.4%</strong>, ν <strong>-12.3</strong>',
+      'Delta hedge <strong>-0.18</strong>, θ <strong>+28.5</strong>',
+      'Price breakout <strong>+1.2σ</strong>, Δ <strong>-0.42</strong>'
+    ];
+    
+    let msgIndex = 0;
+
+    function cycleAIChip() {
+      // Update text
+      aiBreakdown.innerHTML = aiMessages[msgIndex];
+      
+      // Calculate random position within the chart bounds (relative to .payoff-canvas)
+      // Top ranges from 10% to 55% to stay near grid lines but not overlap curve exactly
+      // Left ranges from 15% to 65% to avoid edge cutoffs
+      const randomTop = 10 + Math.random() * 45;
+      const randomLeft = 15 + Math.random() * 50;
+      
+      aiChip.style.top = randomTop + '%';
+      aiChip.style.left = randomLeft + '%';
+      aiChip.style.right = 'auto'; // Override initial CSS right value
+
+      // Show
+      aiChip.classList.remove('hidden');
+      aiChip.classList.add('visible');
+
+      // Hide after 5s
+      setTimeout(() => {
+        aiChip.classList.remove('visible');
+        aiChip.classList.add('hidden');
+      }, 5000);
+
+      // Next message
+      msgIndex = (msgIndex + 1) % aiMessages.length;
+    }
+
+    // Start cycle after initial graph animation finishes (~3.5s)
+    setTimeout(() => {
+      cycleAIChip();
+      // 5s visible + 2s hidden = 7s interval
+      setInterval(cycleAIChip, 7000);
+    }, 3500);
+
+    // ── Flicker Footer Stats (Live Ticker Effect) ──
+    const dStat = document.getElementById('statDelta');
+    const tStat = document.getElementById('statTheta');
+    const vStat = document.getElementById('statVega');
+
+    setInterval(() => {
+      // Delta fluctuates around 0
+      const d = (Math.random() * 0.10 - 0.05).toFixed(2);
+      dStat.textContent = (d >= 0 ? '+' : '') + d;
+      
+      // Theta fluctuates around +32
+      const t = (31.5 + Math.random() * 1.5).toFixed(1);
+      tStat.textContent = '+' + t;
+      
+      // Vega fluctuates around -8
+      const v = (-7.5 - Math.random() * 1.2).toFixed(1);
+      vStat.textContent = v;
+    }, 2000);
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+# Environments & Secrets (CRITICAL)
+.env
+venv/
+env/
+
+# EXCEPTIONS (Force Git to push the example file)
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+
+# Node / Frontend
+node_modules/
+dist/
+build/
+.npm
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE / Editor Files
+.vscode/
+.idea/
+*.swp
+
+# OS Files
+.DS_Store
+Thumbs.db

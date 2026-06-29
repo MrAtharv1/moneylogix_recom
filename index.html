@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MoneyLogix Strategy Builder — Options Strategy Lifecycle Platform</title>
+<meta name="description" content="AI-native options strategy construction and monitoring platform for Indian retail traders. Real-time Greeks, assumption checking, stress testing, and plain-English AI explanations.">
+<meta name="keywords" content="options strategy builder, Nifty options, Black-Scholes, Iron Condor, options Greeks, India options trading">
+<meta name="author" content="MoneyLogix">
+<meta name="theme-color" content="#0f1117">
+<link rel="canonical" href="https://moneylogix.example.com/">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="MoneyLogix Strategy Builder — Options Strategy Lifecycle Platform">
+<meta property="og:description" content="AI-native options strategy construction and monitoring platform for Indian retail traders. Real-time Greeks, assumption checking, stress testing, and plain-English AI explanations.">
+<meta property="og:url" content="https://moneylogix.example.com/">
+<meta property="og:site_name" content="MoneyLogix Strategy Builder">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="MoneyLogix Strategy Builder">
+<meta name="twitter:description" content="AI-native options strategy construction and monitoring for Indian retail traders.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+/* ─────────── RESET ─────────── */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:#0f1117;color:#e6e9ef;line-height:1.7;font-size:16px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;overflow-x:hidden;text-rendering:optimizeLegibility}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+img,svg{display:block;max-width:100%}
+ul,ol{list-style:none}
+::selection{background:rgba(59,130,246,.3);color:#fff}
+
+/* ─────────── TOKENS ─────────── */
+:root{
+  --bg:#0f1117;--bg-elev:#14161f;--bg-card:#161922;--bg-card-2:#1a1d28;
+  --border:#232734;--border-soft:#1a1d27;--border-strong:#2d3142;
+  --text:#e6e9ef;--text-soft:#94a3b8;--text-dim:#64748b;--text-faint:#475569;
+  --accent:#3b82f6;--accent-hover:#2563eb;--accent-soft:rgba(59,130,246,.08);--accent-line:rgba(59,130,246,.3);
+  --green:#10b981;--green-bright:#34d399;--green-soft:rgba(16,185,129,.1);
+  --red:#ef4444;--red-bright:#f87171;--red-soft:rgba(239,68,68,.1);
+  --yellow:#eab308;--yellow-soft:rgba(234,179,8,.1);
+  --ease-quiet:cubic-bezier(.22,1,.36,1);--ease-precise:cubic-bezier(.4,0,.2,1);
+  --container:1200px;--nav-h:64px;
+  --font-mono:'JetBrains Mono','SF Mono',Menlo,monospace;
+}
+
+/* ─────────── TYPE ─────────── */
+h1,h2,h3,h4{font-weight:600;line-height:1.1;letter-spacing:-.02em;color:var(--text)}
+p{color:var(--text-soft)}
+.label{font-family:var(--font-mono);font-size:.7rem;letter-spacing:.18em;text-transform:uppercase;color:var(--text-dim);font-weight:500}
+.eyebrow-tag{display:inline-flex;align-items:center;gap:.6rem;font-family:var(--font-mono);font-size:.72rem;letter-spacing:.15em;text-transform:uppercase;color:var(--text-soft);font-weight:500;padding:.45rem .9rem;border:1px solid var(--border);border-radius:999px;background:rgba(59,130,246,.04)}
+.eyebrow-tag::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent)}
+
+/* ─────────── LAYOUT ─────────── */
+.container{max-width:var(--container);margin:0 auto;padding:0 2rem}
+section{padding:8rem 0;position:relative}
+@media(max-width:768px){section{padding:5rem 0}.container{padding:0 1.5rem}}
+
+/* ─────────── NAV ─────────── */
+.navbar{position:fixed;top:0;left:0;right:0;z-index:100;height:var(--nav-h);display:flex;align-items:center;background:transparent;border-bottom:1px solid transparent;transition:background .4s var(--ease-quiet),border-color .4s var(--ease-quiet),backdrop-filter .4s var(--ease-quiet)}
+.navbar.scrolled{background:rgba(15,17,23,.72);backdrop-filter:blur(16px) saturate(180%);-webkit-backdrop-filter:blur(16px) saturate(180%);border-bottom-color:var(--border-soft)}
+.nav-inner{max-width:var(--container);margin:0 auto;padding:0 2rem;width:100%;display:flex;align-items:center;justify-content:space-between}
+.logo{display:inline-flex;align-items:center;gap:.6rem;font-weight:700;font-size:1rem;letter-spacing:-.01em;color:var(--text)}
+.logo-mark{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,#3b82f6,#1e3a8a);box-shadow:0 4px 12px rgba(59,130,246,.25)}
+.logo-mark svg{width:14px;height:14px}
+.logo-name{display:inline-flex;align-items:baseline;gap:.45rem}
+.logo-name small{font-family:var(--font-mono);font-size:.62rem;font-weight:500;letter-spacing:.14em;color:var(--text-dim);text-transform:uppercase}
+.nav-cta{display:inline-flex;align-items:center;gap:.45rem;font-size:.85rem;font-weight:500;padding:.55rem 1rem;border:1px solid var(--border);border-radius:8px;color:var(--text);background:var(--bg-card);transition:all .25s var(--ease-quiet)}
+.nav-cta:hover{border-color:var(--accent-line);background:var(--accent-soft);color:#fff}
+.nav-cta::after{content:'→';font-family:var(--font-mono);transition:transform .25s var(--ease-quiet)}
+.nav-cta:hover::after{transform:translateX(3px)}
+
+/* ─────────── BUTTONS ─────────── */
+.btn{display:inline-flex;align-items:center;gap:.55rem;font-size:.95rem;font-weight:500;padding:.85rem 1.4rem;border-radius:8px;border:1px solid transparent;transition:all .3s var(--ease-quiet);cursor:pointer;white-space:nowrap}
+.btn .arrow{font-family:var(--font-mono);transition:transform .3s var(--ease-quiet)}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-primary:hover{background:var(--accent-hover);border-color:var(--accent-hover);animation:btn-pulse 2.4s var(--ease-quiet) infinite}
+.btn-primary:hover .arrow{transform:translateX(4px)}
+@keyframes btn-pulse{0%,100%{box-shadow:0 0 0 0 rgba(59,130,246,.5)}50%{box-shadow:0 0 0 12px rgba(59,130,246,0)}}
+.btn-secondary{background:transparent;color:var(--text);border-color:var(--border)}
+.btn-secondary:hover{border-color:var(--border-strong);background:var(--bg-card)}
+.btn-secondary:hover .arrow{transform:translateY(3px)}
+
+/* ─────────── HERO ─────────── */
+.hero{padding-top:calc(var(--nav-h) + 6rem);padding-bottom:5rem;position:relative;overflow:hidden}
+.hero-bg{position:absolute;inset:0;pointer-events:none;z-index:0}
+.hero-bg::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 25% 30%,rgba(59,130,246,.08),transparent 50%),radial-gradient(circle at 80% 70%,rgba(59,130,246,.04),transparent 50%)}
+.hero-bg::after{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(35,39,52,.35) 1px,transparent 1px),linear-gradient(90deg,rgba(35,39,52,.35) 1px,transparent 1px);background-size:60px 60px;background-position:-1px -1px;-webkit-mask-image:radial-gradient(ellipse at center,#000 0%,transparent 70%);mask-image:radial-gradient(ellipse at center,#000 0%,transparent 70%)}
+.hero-inner{position:relative;z-index:1;max-width:var(--container);margin:0 auto;padding:0 2rem;display:grid;grid-template-columns:1fr 1fr;gap:5rem;align-items:center}
+@media(max-width:960px){.hero-inner{grid-template-columns:1fr;gap:4rem}}
+.hero-content{max-width:580px}
+.hero-headline{font-size:clamp(2.5rem,6vw,5rem);font-weight:700;line-height:1.02;letter-spacing:-.035em;margin:1.5rem 0 1.5rem;color:var(--text)}
+.hero-headline em{font-style:normal;color:var(--text);position:relative;display:inline-block}
+.hero-headline em::after{content:'';position:absolute;left:0;right:0;bottom:.05em;height:.08em;background:var(--accent);opacity:.6}
+.hero-sub{font-size:1.1rem;line-height:1.65;color:var(--text-soft);margin-bottom:2.5rem;max-width:520px}
+.hero-ctas{display:flex;gap:.75rem;flex-wrap:wrap}
+.hero-meta{margin-top:3.5rem;display:flex;gap:2.5rem;font-family:var(--font-mono);font-size:.75rem;color:var(--text-dim);flex-wrap:wrap}
+.hero-meta span{display:flex;flex-direction:column;gap:.25rem}
+.hero-meta strong{color:var(--text);font-size:1.4rem;font-weight:600;font-family:'Inter',sans-serif;letter-spacing:-.02em}
+
+/* ─────────── PAYOFF CANVAS ─────────── */
+.payoff-canvas{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:1.5rem;position:relative;box-shadow:0 30px 60px -20px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.02)}
+.payoff-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem;font-family:var(--font-mono);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase}
+.payoff-tag{color:var(--text-soft);font-weight:500}
+.payoff-status{display:inline-flex;align-items:center;gap:.4rem;color:var(--green-bright);font-weight:500}
+.payoff-status::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--green-bright);box-shadow:0 0 8px var(--green-bright);animation:status-blink 2.4s var(--ease-quiet) infinite}
+@keyframes status-blink{0%,100%{opacity:1}50%{opacity:.35}}
+.payoff-svg{width:100%;height:auto;display:block}
+.payoff-svg .grid-line{stroke:var(--border-soft);stroke-width:1;stroke-dasharray:2 6}
+.payoff-svg .grid-zero{stroke:var(--border-strong);stroke-width:1}
+.payoff-svg .axis-label{font-family:var(--font-mono);font-size:9px;fill:var(--text-faint);letter-spacing:.05em}
+.payoff-svg .strike-label{font-family:var(--font-mono);font-size:10px;fill:var(--text-dim);font-weight:500}
+.payoff-svg .strike-sub{font-family:var(--font-mono);font-size:7.5px;fill:var(--text-faint);letter-spacing:.1em}
+.payoff-svg .pnl-label{font-family:var(--font-mono);font-size:10px;font-weight:600;letter-spacing:.05em}
+.payoff-svg .pnl-label.profit{fill:var(--green-bright)}
+.payoff-svg .pnl-label.loss{fill:var(--red-bright)}
+.payoff-svg .spot-label{font-family:var(--font-mono);font-size:10px;fill:var(--accent);font-weight:600;letter-spacing:.05em}
+.payoff-svg .curve-segment{fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.payoff-svg .curve-profit{stroke:var(--green-bright);filter:drop-shadow(0 0 6px rgba(52,211,153,.5));stroke-dasharray:1;stroke-dashoffset:1;animation:draw 1.4s var(--ease-quiet) .8s forwards}
+.payoff-svg .curve-loss{stroke:var(--red-bright);filter:drop-shadow(0 0 6px rgba(248,113,113,.4));stroke-dasharray:1;stroke-dashoffset:1;animation:draw 1.2s var(--ease-quiet) .2s forwards}
+.payoff-svg .curve-loss-right{stroke-dasharray:1;stroke-dashoffset:1;animation:draw 1.2s var(--ease-quiet) 1.8s forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+.payoff-svg .area-fill{opacity:0;animation:fade-in .8s var(--ease-quiet) 2.4s forwards}
+@keyframes fade-in{to{opacity:1}}
+.payoff-svg .spot-line{stroke:var(--accent);stroke-width:1;stroke-dasharray:3 4;opacity:0;animation:fade-in .6s var(--ease-quiet) 2.6s forwards}
+.payoff-svg .spot-glow{fill:rgba(59,130,246,.25);opacity:0;animation:fade-in .4s var(--ease-quiet) 2.8s forwards,glow-pulse 2s var(--ease-quiet) 3s infinite}
+.payoff-svg .spot-dot{fill:var(--accent);opacity:0;animation:fade-in .4s var(--ease-quiet) 2.8s forwards}
+@keyframes glow-pulse{0%,100%{opacity:.3}50%{opacity:.7}}
+.payoff-svg .annotation{opacity:0;animation:fade-in .6s var(--ease-quiet) 3.2s forwards;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.05em}
+.payoff-footer{margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border-soft);display:flex;justify-content:space-between;align-items:center;font-family:var(--font-mono);font-size:.75rem;color:var(--text-dim);flex-wrap:wrap;gap:1rem}
+.legend{display:flex;gap:1.2rem;align-items:center}
+.legend span{display:inline-flex;align-items:center;gap:.4rem}
+.legend-swatch{width:10px;height:10px;border-radius:2px}
+.legend-swatch.green{background:var(--green-bright);box-shadow:0 0 6px rgba(52,211,153,.4)}
+.legend-swatch.red{background:var(--red-bright);box-shadow:0 0 6px rgba(248,113,113,.4)}
+.payoff-stats{display:flex;gap:1.1rem}
+.payoff-stats span{color:var(--text-dim)}
+.payoff-stats strong{color:var(--text);font-weight:600;margin-left:.3rem}
+
+/* ─────────── PROBLEM ─────────── */
+.problem{padding:5rem 0;border-top:1px solid var(--border-soft);border-bottom:1px solid var(--border-soft)}
+.problem-header{text-align:center;margin-bottom:4rem}
+.problem-header h2{font-size:1.5rem;font-weight:600;letter-spacing:-.02em}
+.problem-header p{margin-top:.5rem;color:var(--text-dim);font-size:.95rem}
+.problem-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem}
+@media(max-width:768px){.problem-grid{grid-template-columns:1fr}}
+.problem-card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:2rem;position:relative;transition:border-color .3s var(--ease-quiet),transform .3s var(--ease-quiet)}
+.problem-card:hover{border-color:var(--border-strong);transform:translateY(-2px)}
+.problem-num{font-family:var(--font-mono);font-size:.68rem;color:var(--text-faint);letter-spacing:.15em;margin-bottom:1.4rem}
+.problem-icon{width:34px;height:34px;border-radius:8px;background:var(--red-soft);display:inline-flex;align-items:center;justify-content:center;margin-bottom:1.3rem;color:var(--red-bright);font-family:var(--font-mono);font-size:1.05rem;font-weight:600;border:1px solid rgba(239,68,68,.2)}
+.problem-card h3{font-size:1.1rem;font-weight:600;color:var(--text);margin-bottom:.7rem;letter-spacing:-.01em;line-height:1.3}
+.problem-card p{font-size:.9rem;color:var(--text-soft);line-height:1.6}
+.problem-tag{display:block;margin-top:1.4rem;padding-top:1.2rem;border-top:1px solid var(--border-soft);font-family:var(--font-mono);font-size:.65rem;letter-spacing:.15em;text-transform:uppercase;color:var(--text-dim)}
+
+/* ─────────── FEATURES ─────────── */
+.features{padding:10rem 0 6rem}
+.section-header{text-align:center;margin-bottom:6rem;max-width:760px;margin-left:auto;margin-right:auto;padding:0 2rem}
+.section-eyebrow{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);font-weight:500;margin-bottom:1rem;display:inline-block}
+.section-header h2{font-size:clamp(2rem,4vw,3rem);font-weight:700;letter-spacing:-.03em;line-height:1.1;margin-bottom:1.2rem}
+.section-header p{font-size:1.05rem;color:var(--text-soft);line-height:1.6}
+.feature-row{display:grid;grid-template-columns:1fr 1.1fr;gap:5rem;align-items:center;margin-bottom:8rem}
+.feature-row:last-child{margin-bottom:0}
+.feature-row.reverse{grid-template-columns:1.1fr 1fr}
+.feature-row.reverse .feature-text{order:2}
+@media(max-width:960px){.feature-row,.feature-row.reverse{grid-template-columns:1fr;gap:3rem;margin-bottom:6rem}.feature-row.reverse .feature-text{order:0}}
+.feature-num{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.18em;color:var(--text-dim);font-weight:500;margin-bottom:1.2rem}
+.feature-num span{color:var(--accent)}
+.feature-text h3{font-size:clamp(1.6rem,2.5vw,2.1rem);font-weight:600;line-height:1.15;letter-spacing:-.025em;margin-bottom:1.2rem;color:var(--text)}
+.feature-text p{font-size:1.02rem;line-height:1.65;color:var(--text-soft);margin-bottom:1.2rem}
+.feature-text p em{font-style:normal;color:var(--text);background:rgba(59,130,246,.06);padding:.05em .3em;border-radius:3px}
+.feature-text .footnote{font-family:var(--font-mono);font-size:.75rem;color:var(--text-dim);line-height:1.55;padding-top:1rem;border-top:1px solid var(--border-soft);margin-top:1.5rem}
+
+/* ─── LEGS TABLE ─── */
+.legs-table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.legs-table{min-width:580px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;overflow:hidden;font-family:var(--font-mono);font-size:.8rem}
+.legs-header,.legs-row{display:grid;grid-template-columns:24px 50px 60px 50px 50px 60px 60px 60px 60px;gap:.5rem;padding:.75rem 1.1rem;align-items:center}
+.legs-header{background:var(--bg-card-2);border-bottom:1px solid var(--border);font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);font-weight:500}
+.legs-row{border-bottom:1px solid var(--border-soft);color:var(--text-soft)}
+.legs-row:last-child{border-bottom:none}
+.legs-row .leg-type{color:var(--text);font-weight:500}
+.legs-row .leg-type.call{color:var(--green-bright)}
+.legs-row .leg-type.put{color:var(--red-bright)}
+.legs-row .neg{color:var(--red-bright)}
+.legs-row .pos{color:var(--green-bright)}
+.legs-summary{padding:1rem 1.2rem;background:var(--bg-card-2);border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-size:.74rem;color:var(--text-dim);flex-wrap:wrap;gap:.6rem}
+.legs-summary .stat{display:inline-flex;align-items:center;gap:.4rem}
+.legs-summary .stat strong{color:var(--text);font-weight:600}
+.legs-summary .credit strong{color:var(--green-bright)}
+
+/* ─── ASSUMPTIONS ─── */
+.assumptions{display:grid;gap:.85rem}
+.assumption-card{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:1.1rem 1.3rem;display:grid;grid-template-columns:auto 1fr auto;gap:1rem;align-items:center;position:relative;transition:border-color .3s var(--ease-quiet)}
+.assumption-card.broken{border-color:rgba(239,68,68,.3);background:linear-gradient(180deg,rgba(239,68,68,.03),transparent)}
+.assumption-card.broken:hover{border-color:rgba(239,68,68,.5)}
+.assumption-card.healthy:hover{border-color:var(--border-strong)}
+.assumption-status{width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:.85rem;font-weight:600}
+.assumption-card.healthy .assumption-status{background:var(--green-soft);color:var(--green-bright);border:1px solid rgba(16,185,129,.3)}
+.assumption-card.broken .assumption-status{background:var(--red-soft);color:var(--red-bright);border:1px solid rgba(239,68,68,.3)}
+.assumption-body{display:flex;flex-direction:column;gap:.2rem;min-width:0}
+.assumption-title{font-size:.92rem;color:var(--text);font-weight:500;line-height:1.3}
+.assumption-meta{font-family:var(--font-mono);font-size:.72rem;color:var(--text-dim)}
+.assumption-card.broken .assumption-meta{color:var(--red-bright)}
+.assumption-tag{font-family:var(--font-mono);font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);padding:.32rem .6rem;border:1px solid var(--border);border-radius:4px;white-space:nowrap}
+.assumption-card.broken .assumption-tag{color:var(--red-bright);border-color:rgba(239,68,68,.3);background:var(--red-soft)}
+.assumption-card.healthy .assumption-tag{color:var(--green-bright);border-color:rgba(16,185,129,.2);background:var(--green-soft)}
+
+/* ─── HEATMAP ─── */
+.heatmap{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:1.5rem}
+.heatmap-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;font-family:var(--font-mono);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim)}
+.heatmap-grid{display:grid;grid-template-columns:60px repeat(7,1fr);gap:4px;margin-bottom:.5rem}
+.heatmap-cell{aspect-ratio:1.15;border-radius:4px;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:.72rem;font-weight:600;color:rgba(255,255,255,.9);position:relative;transition:transform .2s var(--ease-quiet);cursor:default}
+.heatmap-cell:hover{transform:scale(1.1);z-index:2}
+.heatmap-cell.row-label,.heatmap-cell.col-label{background:transparent!important;color:var(--text-dim);font-size:.66rem;font-weight:500}
+.heatmap-cell.col-label{aspect-ratio:auto;padding:.3rem 0}
+.heatmap-cell.row-label{aspect-ratio:auto;display:flex;align-items:center;justify-content:flex-end;padding-right:.4rem}
+.heatmap-cell.corner{background:transparent!important;aspect-ratio:auto;display:flex;align-items:center;justify-content:center;font-size:.55rem!important;color:var(--text-faint);text-align:center;line-height:1.2}
+.heatmap-axis-label{margin-top:.8rem;display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:.65rem;color:var(--text-dim);letter-spacing:.1em;text-transform:uppercase;padding:0 .5rem}
+
+/* ─── AI BUBBLE ─── */
+.ai-bubble{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;overflow:hidden;position:relative}
+.ai-bubble::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--red-bright),transparent);opacity:.6}
+.ai-bubble-header{padding:1rem 1.3rem;border-bottom:1px solid var(--border-soft);display:flex;align-items:center;gap:.7rem;font-family:var(--font-mono);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);flex-wrap:wrap}
+.ai-bubble-header .alert-dot{width:8px;height:8px;border-radius:50%;background:var(--red-bright);box-shadow:0 0 8px var(--red-bright);animation:status-blink 2s var(--ease-quiet) infinite}
+.ai-bubble-header .timestamp{margin-left:auto;color:var(--text-dim)}
+.ai-bubble-body{padding:1.4rem 1.3rem 1rem}
+.ai-bubble-body p{font-size:.93rem;line-height:1.65;color:var(--text);margin-bottom:.9rem}
+.ai-bubble-body p:last-child{margin-bottom:0;color:var(--text-soft);font-size:.85rem}
+.ai-bubble-body .mech{font-family:var(--font-mono);font-size:.82rem;color:var(--text);background:var(--bg-card-2);padding:.2rem .5rem;border-radius:4px;border-left:2px solid var(--accent);display:inline-block;margin:0 .1rem;font-weight:500}
+.ai-bubble-body .mech.danger{color:var(--red-bright);border-color:var(--red-bright);background:var(--red-soft)}
+.ai-actions{padding:0 1.3rem 1.3rem;display:flex;gap:.6rem;flex-wrap:wrap}
+.ai-action{font-family:var(--font-mono);font-size:.72rem;padding:.5rem .8rem;border:1px solid var(--border);border-radius:6px;color:var(--text-soft);background:var(--bg-card-2);transition:all .25s var(--ease-quiet);cursor:pointer}
+.ai-action:hover{border-color:var(--accent-line);color:var(--text);background:var(--accent-soft)}
+.ai-bubble-footer{padding:.85rem 1.3rem;background:var(--bg-card-2);border-top:1px solid var(--border-soft);display:flex;gap:1.2rem;font-family:var(--font-mono);font-size:.72rem;color:var(--text-dim);flex-wrap:wrap;align-items:center}
+.ai-bubble-footer span strong{color:var(--text);font-weight:600;margin-left:.3rem}
+.ai-bubble-footer .verify{margin-left:auto;color:var(--text-faint);font-size:.65rem;display:inline-flex;align-items:center;gap:.4rem}
+.ai-bubble-footer .verify::before{content:'✓';color:var(--green-bright);font-weight:700}
+
+/* ─────────── ARCHITECTURE ─────────── */
+.architecture{padding:6rem 0;border-top:1px solid var(--border-soft);background:linear-gradient(180deg,transparent,rgba(20,22,31,.4))}
+.arch-header{text-align:center;max-width:720px;margin:0 auto 4rem;padding:0 2rem}
+.arch-header h2{font-size:clamp(1.6rem,3vw,2.3rem);font-weight:600;letter-spacing:-.02em;margin-bottom:.8rem}
+.arch-header p{color:var(--text-soft);font-size:1rem}
+.arch-flow{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:1.5rem;align-items:stretch;max-width:1100px;margin:0 auto}
+@media(max-width:900px){.arch-flow{grid-template-columns:1fr;gap:1rem}.arch-arrow{display:none}}
+.arch-box{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:2rem 1.5rem;text-align:center;position:relative;transition:border-color .3s var(--ease-quiet)}
+.arch-box:hover{border-color:var(--accent-line)}
+.arch-box-num{font-family:var(--font-mono);font-size:.62rem;letter-spacing:.18em;color:var(--accent);text-transform:uppercase;font-weight:500;margin-bottom:.9rem}
+.arch-box-icon{width:46px;height:46px;margin:0 auto 1rem;border-radius:10px;background:var(--accent-soft);border:1px solid var(--accent-line);display:flex;align-items:center;justify-content:center;color:var(--accent);font-family:var(--font-mono);font-weight:700;font-size:1.2rem}
+.arch-box h4{font-size:1.1rem;font-weight:600;margin-bottom:.6rem;color:var(--text)}
+.arch-box p{font-size:.85rem;color:var(--text-soft);line-height:1.55}
+.arch-arrow{display:flex;align-items:center;justify-content:center;color:var(--text-faint);font-family:var(--font-mono);font-size:1.2rem}
+.arch-note{text-align:center;margin-top:3rem;font-family:var(--font-mono);font-size:.78rem;color:var(--text-dim);letter-spacing:.05em}
+.arch-note strong{color:var(--green-bright);font-weight:500}
+
+/* ─────────── COMPLIANCE ─────────── */
+.compliance{padding:6rem 0;border-top:1px solid var(--border-soft)}
+.compliance-inner{max-width:720px;margin:0 auto;text-align:center;padding:0 2rem}
+.compliance-seal{width:96px;height:96px;margin:0 auto 2rem;position:relative}
+.compliance-seal svg{width:100%;height:100%}
+.compliance h2{font-size:clamp(1.6rem,3vw,2.2rem);font-weight:600;letter-spacing:-.02em;margin-bottom:1rem}
+.compliance p{font-size:1.05rem;color:var(--text-soft);line-height:1.7;max-width:560px;margin:0 auto}
+.compliance-pillars{margin-top:3rem;display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;font-family:var(--font-mono);font-size:.78rem;color:var(--text-dim)}
+@media(max-width:600px){.compliance-pillars{grid-template-columns:1fr}}
+.compliance-pillar{padding:1.1rem 1rem;border:1px solid var(--border);border-radius:8px;background:var(--bg-card);text-align:center}
+.compliance-pillar strong{display:block;color:var(--text);font-weight:600;margin-bottom:.35rem;font-size:.82rem;letter-spacing:.05em}
+
+/* ─────────── DEMO CTA ─────────── */
+.demo-cta{padding:8rem 0}
+.demo-card{max-width:980px;margin:0 auto;padding:5rem 3rem;background:var(--bg-card);border:1px solid var(--border);border-radius:20px;text-align:center;position:relative;overflow:hidden}
+.demo-card::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at center top,rgba(59,130,246,.1),transparent 60%);pointer-events:none}
+.demo-card::after{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(59,130,246,.5),transparent)}
+.demo-card>*{position:relative}
+.demo-card .label{margin-bottom:1.5rem;color:var(--accent)}
+.demo-card h2{font-size:clamp(2rem,5vw,3.4rem);font-weight:700;letter-spacing:-.03em;line-height:1.05;margin-bottom:1.2rem}
+.demo-card p{font-size:1.1rem;color:var(--text-soft);margin-bottom:2.5rem;max-width:480px;margin-left:auto;margin-right:auto}
+.demo-meta{margin-top:2.5rem;display:flex;justify-content:center;gap:2rem;font-family:var(--font-mono);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);flex-wrap:wrap}
+.demo-meta span{display:inline-flex;align-items:center;gap:.45rem}
+.demo-meta span::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--green-bright);box-shadow:0 0 6px var(--green-bright)}
+
+/* ─────────── FOOTER ─────────── */
+footer{border-top:1px solid var(--border-soft);padding:2.5rem 0;background:var(--bg-elev)}
+.footer-inner{max-width:var(--container);margin:0 auto;padding:0 2rem;display:grid;grid-template-columns:1fr 1fr 1fr;gap:2rem;align-items:center}
+@media(max-width:720px){.footer-inner{grid-template-columns:1fr;text-align:center;gap:1.5rem}}
+.footer-left{display:flex;flex-direction:column;gap:.3rem}
+@media(max-width:720px){.footer-left{align-items:center}}
+.footer-brand{font-weight:600;color:var(--text);font-size:.95rem}
+.footer-tag{font-family:var(--font-mono);font-size:.7rem;color:var(--text-dim);letter-spacing:.05em}
+.footer-center{text-align:center;font-family:var(--font-mono);font-size:.75rem;color:var(--text-dim)}
+.footer-right{text-align:right}
+@media(max-width:720px){.footer-right{text-align:center}}
+.footer-cta{display:inline-flex;align-items:center;gap:.4rem;font-size:.88rem;font-weight:500;color:var(--text);padding:.6rem 1.1rem;border:1px solid var(--border);border-radius:8px;transition:all .25s var(--ease-quiet)}
+.footer-cta:hover{border-color:var(--accent);background:var(--accent-soft);color:#fff}
+.footer-cta::after{content:'→';font-family:var(--font-mono);transition:transform .25s var(--ease-quiet)}
+.footer-cta:hover::after{transform:translateX(3px)}
+
+/* ─────────── ANIMATIONS ─────────── */
+.fade-up{opacity:0;transform:translateY(28px);transition:opacity .9s var(--ease-quiet),transform .9s var(--ease-quiet)}
+.fade-up.in-view{opacity:1;transform:translateY(0)}
+.fade-up-delay-1{transition-delay:.1s}
+.fade-up-delay-2{transition-delay:.2s}
+.fade-up-delay-3{transition-delay:.3s}
+
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
+  .fade-up{opacity:1;transform:none}
+  .payoff-svg .curve-segment{stroke-dashoffset:0!important}
+  .payoff-svg .area-fill,.payoff-svg .spot-line,.payoff-svg .spot-dot,.payoff-svg .spot-glow,.payoff-svg .annotation{opacity:1!important}
+}
+
+/* ─────────── MOBILE ─────────── */
+@media(max-width:768px){
+  .hero-meta{gap:1.5rem}
+  .hero-meta strong{font-size:1.15rem}
+  .heatmap-grid{grid-template-columns:42px repeat(7,1fr);gap:2px}
+  .heatmap-cell{font-size:.58rem}
+  .heatmap-cell.corner{font-size:.5rem!important}
+  .demo-card{padding:3rem 1.5rem}
+  .nav-inner{padding:0 1.5rem}
+  .logo-name small{display:none}
+}
+</style>
+</head>
+<body>
+
+<nav class="navbar" id="navbar">
+  <div class="nav-inner">
+    <a href="#" class="logo" aria-label="MoneyLogix home">
+      <span class="logo-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M2 17 L7 17 L10 7 L14 7 L17 17 L22 17" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <span class="logo-name">
+        MoneyLogix
+        <small>Strategy Builder</small>
+      </span>
+    </a>
+    <a href="http://localhost:5173" class="nav-cta" aria-label="Launch MoneyLogix app">Launch App</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-bg" aria-hidden="true"></div>
+  <div class="hero-inner">
+    <div class="hero-content">
+      <span class="eyebrow-tag">Built for Indian Options Traders</span>
+      <h1 class="hero-headline">Your strategy doesn't end at <em>entry</em>.</h1>
+      <p class="hero-sub">MoneyLogix Strategy Builder monitors your multi-leg options positions in real time — and explains in plain English when your assumptions break.</p>
+      <div class="hero-ctas">
+        <a href="http://localhost:5173" class="btn btn-primary">Launch Platform <span class="arrow">→</span></a>
+        <a href="#demo" class="btn btn-secondary">View Demo <span class="arrow">↓</span></a>
+      </div>
+      <div class="hero-meta">
+        <span><strong>35</strong>stress scenarios</span>
+        <span><strong>4</strong>assumption checks</span>
+        <span><strong>0</strong>hallucinated figures</span>
+      </div>
+    </div>
+
+    <div class="hero-visual">
+      <div class="payoff-canvas">
+        <div class="payoff-header">
+          <span class="payoff-tag">IRON CONDOR · NIFTY · 25 JUN</span>
+          <span class="payoff-status">LIVE</span>
+        </div>
+        <svg class="payoff-svg" viewBox="0 0 800 400" preserveAspectRatio="xMidYMid meet" aria-label="Iron Condor payoff curve showing profit and loss zones across Nifty spot prices">
+          <!-- grid -->
+          <g>
+            <line class="grid-line" x1="40" y1="30" x2="780" y2="30"/>
+            <line class="grid-line" x1="40" y1="90" x2="780" y2="90"/>
+            <line class="grid-zero" x1="40" y1="150" x2="780" y2="150"/>
+            <line class="grid-line" x1="40" y1="210" x2="780" y2="210"/>
+            <line class="grid-line" x1="40" y1="270" x2="780" y2="270"/>
+            <line class="grid-line" x1="40" y1="330" x2="780" y2="330"/>
+            <line class="grid-line" x1="171.4" y1="20" x2="171.4" y2="340"/>
+            <line class="grid-line" x1="285.7" y1="20" x2="285.7" y2="340"/>
+            <line class="grid-line" x1="400" y1="20" x2="400" y2="340"/>
+            <line class="grid-line" x1="514.3" y1="20" x2="514.3" y2="340"/>
+            <line class="grid-line" x1="628.6" y1="20" x2="628.6" y2="340"/>
+          </g>
+          <!-- axis labels -->
+          <text x="34" y="34" text-anchor="end" class="axis-label">+5K</text>
+          <text x="34" y="94" text-anchor="end" class="axis-label">+2.5K</text>
+          <text x="34" y="154" text-anchor="end" class="axis-label" style="fill:var(--text-soft)">±0</text>
+          <text x="34" y="214" text-anchor="end" class="axis-label">-2.5K</text>
+          <text x="34" y="274" text-anchor="end" class="axis-label">-5K</text>
+          <text x="34" y="334" text-anchor="end" class="axis-label">-7K</text>
+          <!-- area fills -->
+          <path class="area-fill" d="M 228.6,150 L 285.7,30 L 514.3,30 L 560,150 Z" fill="rgba(52,211,153,.08)"/>
+          <path class="area-fill" d="M 40,150 L 228.6,150 L 171.4,330 L 40,330 Z" fill="rgba(248,113,113,.08)"/>
+          <path class="area-fill" d="M 560,150 L 780,150 L 780,330 L 628.6,330 Z" fill="rgba(248,113,153,.08)"/>
+          <!-- spot indicator (behind curve) -->
+          <line class="spot-line" x1="400" y1="20" x2="400" y2="340"/>
+          <circle class="spot-glow" cx="400" cy="30" r="9"/>
+          <circle class="spot-dot" cx="400" cy="30" r="4"/>
+          <text x="400" y="12" text-anchor="middle" class="spot-label">SPOT 235.40</text>
+          <!-- curve segments -->
+          <path class="curve-segment curve-loss" d="M 40,330 L 171.4,330 L 228.6,150" pathLength="1"/>
+          <path class="curve-segment curve-profit" d="M 228.6,150 L 285.7,30 L 514.3,30 L 560,150" pathLength="1"/>
+          <path class="curve-segment curve-loss curve-loss-right" d="M 560,150 L 628.6,330 L 780,330" pathLength="1"/>
+          <!-- annotations -->
+          <text x="400" y="22" text-anchor="middle" class="annotation pnl-label profit">MAX PROFIT +₹4.0K</text>
+          <text x="228.6" y="142" text-anchor="middle" class="annotation" style="fill:var(--text-dim);">B/E 221</text>
+          <text x="560" y="142" text-anchor="middle" class="annotation" style="fill:var(--text-dim);">B/E 249</text>
+          <!-- strike markers -->
+          <g>
+            <line x1="171.4" y1="335" x2="171.4" y2="345" stroke="#475569" stroke-width="1"/>
+            <line x1="285.7" y1="335" x2="285.7" y2="345" stroke="#475569" stroke-width="1"/>
+            <line x1="514.3" y1="335" x2="514.3" y2="345" stroke="#475569" stroke-width="1"/>
+            <line x1="628.6" y1="335" x2="628.6" y2="345" stroke="#475569" stroke-width="1"/>
+            <text x="171.4" y="360" text-anchor="middle" class="strike-label">215</text>
+            <text x="285.7" y="360" text-anchor="middle" class="strike-label">225</text>
+            <text x="514.3" y="360" text-anchor="middle" class="strike-label">245</text>
+            <text x="628.6" y="360" text-anchor="middle" class="strike-label">255</text>
+            <text x="171.4" y="373" text-anchor="middle" class="strike-sub">LONG PUT</text>
+            <text x="285.7" y="373" text-anchor="middle" class="strike-sub">SHORT PUT</text>
+            <text x="514.3" y="373" text-anchor="middle" class="strike-sub">SHORT CALL</text>
+            <text x="628.6" y="373" text-anchor="middle" class="strike-sub">LONG CALL</text>
+          </g>
+          <!-- x-axis label -->
+          <text x="410" y="395" text-anchor="middle" class="axis-label" style="letter-spacing:.15em;">NIFTY SPOT AT EXPIRY →</text>
+        </svg>
+        <div class="payoff-footer">
+          <div class="legend">
+            <span><span class="legend-swatch green"></span>Profit zone</span>
+            <span><span class="legend-swatch red"></span>Loss zone</span>
+          </div>
+          <div class="payoff-stats">
+            <span>Δ<strong>+0.02</strong></span>
+            <span>θ<strong style="color:var(--green-bright)">+32.4</strong></span>
+            <span>ν<strong style="color:var(--red-bright)">-8.1</strong></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="problem">
+  <div class="container">
+    <div class="problem-header fade-up">
+      <h2>The state of options tooling in India.</h2>
+      <p>Three platforms. Three thresholds where they stop helping you.</p>
+    </div>
+    <div class="problem-grid">
+      <div class="problem-card fade-up">
+        <div class="problem-num">01 / SENSIBULL</div>
+        <div class="problem-icon">⌧</div>
+        <h3>Sensibull stops after construction.</h3>
+        <p>You built the Iron Condor. You saw the payoff. Then the tab stays open while you check positions in your broker terminal — disconnected from the strategy you actually built.</p>
+        <div class="problem-tag">No lifecycle awareness</div>
+      </div>
+      <div class="problem-card fade-up fade-up-delay-1">
+        <div class="problem-num">02 / OPSTRA</div>
+        <div class="problem-icon">≡</div>
+        <h3>Opstra gives data, not insight.</h3>
+        <p>Greeks, IV skew, OI buildup — all there. But the trader still has to mentally compute what a 2% move with a 4-point IV crush does to the position. The platform doesn't tell you.</p>
+        <div class="problem-tag">Raw data, no interpretation</div>
+      </div>
+      <div class="problem-card fade-up fade-up-delay-2">
+        <div class="problem-num">03 / OPTIONSTRAT</div>
+        <div class="problem-icon">⌖</div>
+        <h3>OptionStrat has no market awareness.</h3>
+        <p>Built for US markets. No native NSE option chain. No India-specific expiry logic. No real-time feed integration. The strategy exists in a vacuum — not in the market you're trading.</p>
+        <div class="problem-tag">No NSE integration</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="features" id="features">
+  <div class="section-header fade-up">
+    <span class="section-eyebrow">THE PLATFORM</span>
+    <h2>From construction to monitoring, in one tool.</h2>
+    <p>MoneyLogix Strategy Builder isn't a strategy builder. It's a strategy lifecycle tool — the only one built ground-up for Indian options.</p>
+  </div>
+
+  <div class="container">
+    <!-- FEATURE 1 -->
+    <div class="feature-row fade-up">
+      <div class="feature-text">
+        <div class="feature-num"><span>01</span> / STRATEGY CONSTRUCTION</div>
+        <h3>Build any multi-leg strategy. Greeks and payoff update instantly.</h3>
+        <p>Iron Condor, Straddle, Strangle, Butterfly, Calendar, Diagonal, Ratio Spreads, custom. Drag legs, adjust quantities, see Δ Γ θ ν recompute on every keystroke. No deploy. No submit.</p>
+        <p class="footnote">Supports NSE equity and index options. Weekly and monthly expiries. 4-leg and 8-leg positions.</p>
+      </div>
+      <div class="feature-visual">
+        <div class="legs-table-scroll">
+          <div class="legs-table">
+            <div class="legs-header">
+              <span>#</span><span>TYPE</span><span>STRIKE</span><span>EXP</span><span>QTY</span><span>LTP</span><span>Δ</span><span>Γ</span><span>θ</span>
+            </div>
+            <div class="legs-row">
+              <span>1</span><span class="leg-type put">PUT</span><span>215</span><span>25J</span><span class="neg">-75</span><span>2.40</span><span class="neg">-0.18</span><span>0.004</span><span class="pos">+0.8</span>
+            </div>
+            <div class="legs-row">
+              <span>2</span><span class="leg-type put">PUT</span><span>225</span><span>25J</span><span class="pos">+75</span><span>4.10</span><span class="pos">+0.31</span><span>0.006</span><span class="neg">-1.2</span>
+            </div>
+            <div class="legs-row">
+              <span>3</span><span class="leg-type call">CALL</span><span>245</span><span>25J</span><span class="pos">+75</span><span>3.80</span><span class="neg">-0.29</span><span>0.006</span><span class="neg">-1.1</span>
+            </div>
+            <div class="legs-row">
+              <span>4</span><span class="leg-type call">CALL</span><span>255</span><span>25J</span><span class="neg">-75</span><span>1.90</span><span class="pos">+0.16</span><span>0.004</span><span class="pos">+0.7</span>
+            </div>
+            <div class="legs-summary">
+              <span class="stat">NET Δ <strong>+0.00</strong></span>
+              <span class="stat">NET θ <strong style="color:var(--green-bright)">+32.4</strong></span>
+              <span class="stat">NET ν <strong style="color:var(--red-bright)">-8.1</strong></span>
+              <span class="stat credit">CREDIT <strong>+₹4,875</strong></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FEATURE 2 -->
+    <div class="feature-row reverse fade-up">
+      <div class="feature-text">
+        <div class="feature-num"><span>02</span> / ASSUMPTION DASHBOARD</div>
+        <h3>Every strategy has entry assumptions. We check them continuously.</h3>
+        <p>When you opened the Iron Condor, you assumed IV would stay elevated and spot would pin. We track each assumption in real time — and tell you exactly when one breaks. Before P&L tells you.</p>
+        <p class="footnote">Assumptions are explicit, not implied. You define them at entry. We verify them every tick.</p>
+      </div>
+      <div class="feature-visual">
+        <div class="assumptions">
+          <div class="assumption-card healthy">
+            <span class="assumption-status">✓</span>
+            <div class="assumption-body">
+              <div class="assumption-title">IV stays above 12%</div>
+              <div class="assumption-meta">Currently 14.2% · margin 2.2 pts</div>
+            </div>
+            <span class="assumption-tag">Healthy</span>
+          </div>
+          <div class="assumption-card healthy">
+            <span class="assumption-status">✓</span>
+            <div class="assumption-body">
+              <div class="assumption-title">Spot pins between 230 and 240</div>
+              <div class="assumption-meta">Currently 235.40 · in range</div>
+            </div>
+            <span class="assumption-tag">Healthy</span>
+          </div>
+          <div class="assumption-card broken">
+            <span class="assumption-status">!</span>
+            <div class="assumption-body">
+              <div class="assumption-title">No breakout above 248 before Thursday</div>
+              <div class="assumption-meta">Spot at 247.80 · 0.20 from break</div>
+            </div>
+            <span class="assumption-tag">Breaking</span>
+          </div>
+          <div class="assumption-card healthy">
+            <span class="assumption-status">✓</span>
+            <div class="assumption-body">
+              <div class="assumption-title">Theta outpaces Vega crush</div>
+              <div class="assumption-meta">θ +32.4/day · ν -8.1/pt · ok</div>
+            </div>
+            <span class="assumption-tag">Healthy</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FEATURE 3 -->
+    <div class="feature-row fade-up">
+      <div class="feature-text">
+        <div class="feature-num"><span>03</span> / STRESS TEST</div>
+        <h3>35 simultaneous scenarios. Not just the payoff at expiry.</h3>
+        <p>What if Nifty drops 3% in two hours? What if IV spikes 20% overnight? What if theta decay stalls because of a holiday? The heatmap shows P&L across every spot × IV combination — so you see the corners, not just the centre.</p>
+        <p class="footnote">Spot moves: -6% to +6% in 2% steps. IV moves: -30% to +30% in 15% steps. 7 × 5 = 35 cells.</p>
+      </div>
+      <div class="feature-visual">
+        <div class="heatmap">
+          <div class="heatmap-header">
+            <span>P&L HEATMAP · IRON CONDOR</span>
+            <span style="color:var(--text-soft);">INR · LOT 75</span>
+          </div>
+          <div class="heatmap-grid" id="heatmapGrid"></div>
+          <div class="heatmap-axis-label">
+            <span>← IV shock</span>
+            <span>spot shock →</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FEATURE 4 -->
+    <div class="feature-row reverse fade-up">
+      <div class="feature-text">
+        <div class="feature-num"><span>04</span> / AI EXPLANATION LAYER</div>
+        <h3>When IV drops or price moves, the AI explains the mechanical reason.</h3>
+        <p>Not "your P&L dropped" — but <em>Nifty moved 1.2σ against your short 245-call. IV crushed 4 points. Delta flipped from neutral to -0.31. Theta (+₹32/day) cannot offset vega crush (-₹8/pt) and the directional move.</em> Grounded in Black-Scholes. Zero hallucinated figures.</p>
+        <p class="footnote">Every number the AI states was computed by the Quant Engine. No invented data. No guessing.</p>
+      </div>
+      <div class="feature-visual">
+        <div class="ai-bubble">
+          <div class="ai-bubble-header">
+            <span class="alert-dot"></span>
+            ASSUMPTION BREAK · 14:32:07
+            <span class="timestamp">NIFTY 247.80</span>
+          </div>
+          <div class="ai-bubble-body">
+            <p>Spot broke above your upper breakeven at <span class="mech">249</span>. The short <span class="mech">245-call</span> is now <span class="mech">2.4 ITM</span>.</p>
+            <p>Delta flipped from neutral to <span class="mech danger">-0.31</span> — you are now net short the market. Theta (+₹32/day) cannot offset the vega crush (-₹8/pt) and the directional move.</p>
+            <p>Three mechanical options:</p>
+          </div>
+          <div class="ai-actions">
+            <a class="ai-action" href="http://localhost:5173">→ Roll call spread up 5 pts</a>
+            <a class="ai-action" href="http://localhost:5173">→ Add long 250-call (hedge)</a>
+            <a class="ai-action" href="http://localhost:5173">→ Close position</a>
+          </div>
+          <div class="ai-bubble-footer">
+            <span>Δ<strong>-0.31</strong></span>
+            <span>γ<strong>0.04</strong></span>
+            <span>θ<strong>+32.4</strong></span>
+            <span>ν<strong>-8.1</strong></span>
+            <span class="verify">computed via Black-Scholes</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="architecture">
+  <div class="arch-header fade-up">
+    <h2>Three engines. One loop.</h2>
+    <p>Every number the AI states was computed by Black-Scholes. Zero hallucinated figures.</p>
+  </div>
+  <div class="container">
+    <div class="arch-flow fade-up">
+      <div class="arch-box">
+        <div class="arch-box-num">ENGINE 01</div>
+        <div class="arch-box-icon">∂</div>
+        <h4>Quant Engine</h4>
+        <p>Black-Scholes pricing, full Greek surface, IV skew modelling. Recomputes every tick. The source of truth for every number on screen.</p>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box">
+        <div class="arch-box-num">ENGINE 02</div>
+        <div class="arch-box-icon">∞</div>
+        <h4>Lifecycle Engine</h4>
+        <p>Tracks assumptions, monitors spot and IV, runs stress scenarios. Detects breaks before they become losses.</p>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box">
+        <div class="arch-box-num">ENGINE 03</div>
+        <div class="arch-box-icon">∇</div>
+        <h4>AI Explanation Layer</h4>
+        <p>Translates mechanical state into plain English. References computed Greeks. Never invents numbers. Always explains why.</p>
+      </div>
+    </div>
+    <div class="arch-note fade-up">
+      <strong>✓</strong> Every figure cited by the AI is computed by Engine 01. <strong>Zero</strong> hallucinated data.
+    </div>
+  </div>
+</section>
+
+<section class="compliance">
+  <div class="compliance-inner fade-up">
+    <div class="compliance-seal">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <polygon points="50,5 90,28 90,72 50,95 10,72 10,28" fill="none" stroke="#2d3142" stroke-width="1.2"/>
+        <polygon points="50,13 84,32 84,68 50,87 16,68 16,32" fill="none" stroke="#232734" stroke-width="1" stroke-dasharray="3 2.5"/>
+        <text x="50" y="56" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="13" font-weight="700" fill="#e6e9ef" letter-spacing="1.5">SEBI</text>
+      </svg>
+    </div>
+    <h2>SEBI-Compliant by Design.</h2>
+    <p>No investment recommendations. No predictions. No "AI says buy." The user always decides. The platform always explains.</p>
+    <div class="compliance-pillars">
+      <div class="compliance-pillar">
+        <strong>No recommendations</strong>
+        We never tell you what to trade.
+      </div>
+      <div class="compliance-pillar">
+        <strong>No predictions</strong>
+        We don't forecast where Nifty goes.
+      </div>
+      <div class="compliance-pillar">
+        <strong>Full transparency</strong>
+        Every number is computed, not generated.
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="demo-cta" id="demo">
+  <div class="container">
+    <div class="demo-card fade-up">
+      <span class="label">LIVE DEMO</span>
+      <h2>See it live in 2 minutes.</h2>
+      <p>No login. No signup. Runs locally — your positions, your machine, your data.</p>
+      <a href="http://localhost:5173" class="btn btn-primary">Launch Platform <span class="arrow">→</span></a>
+      <div class="demo-meta">
+        <span>No login</span>
+        <span>No signup</span>
+        <span>Local-first</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-left">
+      <span class="footer-brand">MoneyLogix Strategy Builder</span>
+      <span class="footer-tag">v0.1 · Black-Scholes native</span>
+    </div>
+    <div class="footer-center">
+      Built for MoneyLogix Internship Hackathon 2026
+    </div>
+    <div class="footer-right">
+      <a href="http://localhost:5173" class="footer-cta">Launch App</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  'use strict';
+
+  // ── Navbar scroll state ─────────────────────────
+  const navbar = document.getElementById('navbar');
+  let ticking = false;
+  function onScroll(){
+    if (!ticking) {
+      window.requestAnimationFrame(()=>{
+        if (window.scrollY > 20) navbar.classList.add('scrolled');
+        else navbar.classList.remove('scrolled');
+        ticking = false;
+      });
+      ticking = true;
+    }
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+
+  // ── Fade-up on scroll ───────────────────────────
+  if ('IntersectionObserver' in window) {
+    const observer = new IntersectionObserver((entries)=>{
+      entries.forEach(entry=>{
+        if (entry.isIntersecting) {
+          entry.target.classList.add('in-view');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -60px 0px' });
+    document.querySelectorAll('.fade-up').forEach(el=>observer.observe(el));
+  } else {
+    document.querySelectorAll('.fade-up').forEach(el=>el.classList.add('in-view'));
+  }
+
+  // ── Heatmap builder ─────────────────────────────
+  function buildHeatmap(){
+    const grid = document.getElementById('heatmapGrid');
+    if (!grid) return;
+
+    const spotMoves = ['-6%','-4%','-2%','0%','+2%','+4%','+6%'];
+    const ivMoves = ['+30%','+15%','0%','-15%','-30%'];
+
+    // P&L matrix (₹ thousands, lot 75) — Iron Condor behaviour
+    // Max profit at spot-pinned + IV crushed; max loss at far spot + IV spiked
+    const pnl = [
+      [-7.2,-4.8,-1.5, 1.5,-1.2,-4.5,-7.0], // IV +30%
+      [-6.8,-4.2,-0.8, 2.8,-0.5,-3.8,-6.4], // IV +15%
+      [-6.2,-3.5, 0.5, 4.0, 0.5,-3.5,-6.2], // IV 0%
+      [-5.5,-2.8, 1.8, 5.2, 1.8,-2.8,-5.5], // IV -15%
+      [-4.8,-1.8, 3.2, 6.2, 3.2,-1.8,-4.8]  // IV -30%
+    ];
+
+    // Corner
+    const corner = document.createElement('div');
+    corner.className = 'heatmap-cell corner';
+    corner.innerHTML = 'spot →<br>IV ↓';
+    grid.appendChild(corner);
+
+    // Column headers
+    spotMoves.forEach(s=>{
+      const c = document.createElement('div');
+      c.className = 'heatmap-cell col-label';
+      c.textContent = s;
+      grid.appendChild(c);
+    });
+
+    // Rows
+    pnl.forEach((row, rIdx)=>{
+      const rowLabel = document.createElement('div');
+      rowLabel.className = 'heatmap-cell row-label';
+      rowLabel.textContent = ivMoves[rIdx];
+      grid.appendChild(rowLabel);
+
+      row.forEach(val=>{
+        const cell = document.createElement('div');
+        cell.className = 'heatmap-cell';
+        const abs = Math.abs(val);
+        const alpha = Math.min(0.95, 0.18 + (abs/7) * 0.77);
+        if (val >= 0) {
+          cell.style.background = `rgba(16,185,129,${alpha})`;
+          cell.style.color = val > 3 ? '#0a2418' : 'rgba(255,255,255,.92)';
+        } else {
+          cell.style.background = `rgba(239,68,68,${alpha})`;
+          cell.style.color = val < -5 ? '#fff' : 'rgba(255,255,255,.92)';
+        }
+        cell.textContent = (val >= 0 ? '+' : '') + val.toFixed(1);
+        cell.title = `IV ${ivMoves[rIdx]}, Spot ${spotMoves[arguments[1] || 0]}: ₹${val >= 0 ? '+' : ''}${val.toFixed(1)}K`;
+        grid.appendChild(cell);
+      });
+    });
+  }
+  buildHeatmap();
+
+  // ── Smooth scroll for in-page anchors ───────────
+  document.querySelectorAll('a[href^="#"]').forEach(anchor=>{
+    anchor.addEventListener('click', function(e){
+      const targetId = this.getAttribute('href');
+      if (targetId === '#' || targetId.length < 2) return;
+      const target = document.querySelector(targetId);
+      if (target) {
+        e.preventDefault();
+        const offset = 64;
+        const top = target.getBoundingClientRect().top + window.scrollY - offset;
+        window.scrollTo({ top, behavior: 'smooth' });
+      }
+    });
+  });
+
+  // ── Update title on visibility (subtle touch) ───
+  let originalTitle = document.title;
+  document.addEventListener('visibilitychange', ()=>{
+    if (document.hidden) {
+      document.title = '◆ MoneyLogix · monitor running';
+    } else {
+      document.title = originalTitle;
+    }
+  });
+})();
+</script>
+
+</body>
+</html>
