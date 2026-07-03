@@ -19,6 +19,18 @@ const STATUS_CONFIG = {
   error: { dot: 'bg-loss', text: '● Connection error' },
 };
 
+// HELPER: Forces IST Time format
+const formatISTTime = (dateString: string) => {
+  if (!dateString) return '';
+  return new Date(dateString).toLocaleTimeString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  });
+};
+
 export function HealthMonitor({ strategyId }: Props) {
   const { latestEvent, connectionStatus, healthHistory } = useHealthMonitor(strategyId);
   const [explanation, setExplanation] = useState('');
@@ -76,7 +88,7 @@ export function HealthMonitor({ strategyId }: Props) {
 
       {latestEvent && latestEvent.diff && !latestEvent.diff.has_changes && (
         <div className="text-secondary text-sm">
-          ✓ No significant changes since entry — last checked {new Date(latestEvent.checked_at).toLocaleTimeString()}
+          ✓ No significant changes since entry — last checked {formatISTTime(latestEvent.checked_at)}
         </div>
       )}
 

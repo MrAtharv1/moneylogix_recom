@@ -66,6 +66,14 @@ export interface PayoffPoint {
   pnl: number;
 }
 
+export interface RiskScore {
+  score: number;        // 0-100, rounded
+  tier: string;         // "Conservative" | "Moderate" | "Aggressive"
+  color: string;        // "green" | "amber" | "red"
+  breakdown: Record<string, number>;  // {delta, gamma, vega, margin, maxLoss, liquidity}
+  interpretation: string;
+}
+
 export interface StrategyMetrics {
   legs: Leg[];
   greeks_per_leg: Greeks[];
@@ -75,6 +83,39 @@ export interface StrategyMetrics {
   payoff_curve: PayoffPoint[];
   iv_rank: number;
   expected_move_pct: number;
+  risk_score?: RiskScore;
+}
+
+export interface StrategyDNA {
+  strategy_type: string;
+  display_name: string;
+  goal: string;
+  best_market: string;
+  worst_market: string;
+  time_sensitivity: string;
+  volatility_sensitivity: string;
+  max_risk_description: string;
+  max_reward_description: string;
+  key_risks: string[];
+  ideal_entry_conditions: string[];
+}
+
+export interface TimeDecaySnapshot {
+  label: string;          // "Today" | "+1 day" | "+3 days" etc.
+  days_remaining: number;
+  payoff_curve: PayoffPoint[];
+  net_theta_per_day: number;
+  theta_eroded_since_entry: number;
+  max_profit: number;
+  max_loss: number;
+  portfolio_delta: number;
+  portfolio_vega: number;
+}
+
+export interface TimeDecaySeries {
+  snapshots: TimeDecaySnapshot[];
+  entry_max_profit: number;
+  entry_max_loss: number;
 }
 
 export interface AssumptionCheck {

@@ -4,7 +4,7 @@ database.py — SQLite database setup and CRUD operations.
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import logging
 
@@ -16,7 +16,7 @@ except ImportError:
     DB_URL = "sqlite:///./moneylogix.db"
 
 logger = logging.getLogger(__name__)
-
+timestamp = datetime.now(timezone.utc).isoformat()
 engine = create_engine(DB_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()

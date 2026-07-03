@@ -1,10 +1,10 @@
 /**
  * useStrategy.ts — Central state management for strategy construction.
- * Uses useReducer for predictable state transitions.
  */
-import { useReducer, useCallback } from 'react';
+import { useReducer, useCallback, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { analyzeStrategy, saveStrategy } from '../api/client';
+import { decodeQueryStringToStrategy } from '../utils/strategyLink';
 import type { Leg, StrategyType, StrategyMetrics, AssumptionResult, DataMode } from '../types/strategy';
 
 interface StrategyState {
@@ -22,8 +22,9 @@ interface StrategyState {
 
 type Action =
   | { type: 'ADD_LEG'; payload: Leg }
-  | { type: 'REMOVE_LEG'; payload: string }  // leg id
+  | { type: 'REMOVE_LEG'; payload: string }
   | { type: 'UPDATE_LEG'; payload: { id: string; updates: Partial<Leg> } }
+  | { type: 'SET_LEGS'; payload: Leg[] }
   | { type: 'SET_STRATEGY_TYPE'; payload: StrategyType }
   | { type: 'SET_SYMBOL'; payload: string }
   | { type: 'SET_METRICS'; payload: { metrics: StrategyMetrics; assumptions: AssumptionResult; mode: DataMode } }
@@ -33,7 +34,6 @@ type Action =
   | { type: 'SET_SAVED_ID'; payload: string }
   | { type: 'RESET' };
 
-// Default leg values for new legs
 const DEFAULT_LEG: Omit<Leg, 'id'> = {
   symbol: 'NIFTY',
   strike: 19000,
@@ -71,6 +71,8 @@ function reducer(state: StrategyState, action: Action): StrategyState {
           leg.id === action.payload.id ? { ...leg, ...action.payload.updates } : leg
         ),
       };
+    case 'SET_LEGS':
+      return { ...state, legs: action.payload };
     case 'SET_STRATEGY_TYPE':
       return { ...state, strategyType: action.payload };
     case 'SET_SYMBOL':
@@ -101,6 +103,19 @@ function reducer(state: StrategyState, action: Action): StrategyState {
 export function useStrategy() {
   const [state, dispatch] = useReducer(reducer, initialState);
 
+  // ── URL SHARE: Read query string on mount ─────────────────────────────
+  useEffect(() => {
+    const shared = decodeQueryStringToStrategy(window.location.search);
+    if (shared) {
+      dispatch({ type: 'SET_SYMBOL', payload: shared.symbol });
+      dispatch({ type: 'SET_STRATEGY_TYPE', payload: shared.strategyType });
+      dispatch({ type: 'SET_LEGS', payload: shared.legs });
+      // Clean the URL so it doesn't re-trigger on refresh
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+  // ──────────────────────────────────────────────────────────────────────
+
   const addLeg = useCallback((overrides: any = {}) => {
     const safeOverrides = overrides?.nativeEvent ? {} : overrides;
     dispatch({
@@ -117,57 +132,75 @@ export function useStrategy() {
     dispatch({ type: 'UPDATE_LEG', payload: { id, updates } });
   }, []);
 
-  const analyzeNow = useCallback(async () => {
-    if (state.legs.length === 0) return;
+  const setLegs = useCallback((legs: Leg[]) => {
+    dispatch({ type: 'SET_LEGS', payload: legs });
+  }, []);
+
+  const analyzeNow = useCallback(async (
+    legs: Leg[] = state.legs,
+    strategyType: StrategyType = state.strategyType,
+    symbol: string = state.symbol
+  ) => {
+    if (legs.length === 0) return;
+
     dispatch({ type: 'SET_ANALYZING', payload: true });
     dispatch({ type: 'SET_ERROR', payload: null });
 
-    const result = await analyzeStrategy(state.legs, state.strategyType, state.symbol);
-    if (result) {
-      dispatch({
-        type: 'SET_METRICS',
-        payload: {
-          metrics: result.metrics,
-          assumptions: result.assumptions,
-          mode: result.data_mode,
-        },
-      });
-    } else {
-      dispatch({ type: 'SET_ERROR', payload: 'Analysis failed. Check if backend is running.' });
+    try {
+      const result = await analyzeStrategy(legs, strategyType, symbol);
+      if (result) {
+        dispatch({
+          type: 'SET_METRICS',
+          payload: {
+            metrics: result.metrics,
+            assumptions: result.assumptions,
+            mode: result.data_mode,
+          },
+        });
+      } else {
+        dispatch({ type: 'SET_ERROR', payload: 'Analysis failed.' });
+      }
+    } catch (e: any) {
+      dispatch({ type: 'SET_ERROR', payload: e?.message || 'Network error. Is backend running?' });
+    } finally {
+      dispatch({ type: 'SET_ANALYZING', payload: false });
     }
-    dispatch({ type: 'SET_ANALYZING', payload: false });
   }, [state.legs, state.strategyType, state.symbol]);
 
   const saveCurrent = useCallback(async (): Promise<string | null> => {
     if (!state.metrics) return null;
     
-    const strategyId = uuidv4(); // Temporary ID for the request
+    const strategyId = uuidv4();
     dispatch({ type: 'SET_SAVING', payload: true });
+    dispatch({ type: 'SET_ERROR', payload: null });
     
-    const result = await saveStrategy(strategyId, state.legs, state.metrics, state.symbol, state.strategyType);
-    
-    if (result?.saved) {
-      //Tell the frontend to use the official ID returned by the backend
-      const finalId = result.strategy_id || strategyId;
-      
-      dispatch({ type: 'SET_SAVED_ID', payload: finalId });
+    try {
+      const result = await saveStrategy(strategyId, state.legs, state.metrics, state.symbol, state.strategyType);
+      if (result?.saved) {
+        const finalId = result.strategy_id || strategyId;
+        dispatch({ type: 'SET_SAVED_ID', payload: finalId });
+        return finalId;
+      } else {
+        dispatch({ type: 'SET_ERROR', payload: 'Save failed.' });
+      }
+    } catch (e: any) {
+      dispatch({ type: 'SET_ERROR', payload: e?.message || 'Network error during save.' });
+    } finally {
       dispatch({ type: 'SET_SAVING', payload: false });
-      return finalId;
     }
-    
-    dispatch({ type: 'SET_SAVING', payload: false });
     return null;
   }, [state.metrics, state.legs, state.symbol, state.strategyType]);
 
   const reset = useCallback(() => {
     dispatch({ type: 'RESET' });
   }, []);
-
+  
   return {
     state,
     addLeg,
     removeLeg,
     updateLeg,
+    setLegs,
     analyzeNow,
     saveCurrent,
     reset,

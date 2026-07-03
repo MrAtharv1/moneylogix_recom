@@ -1,13 +1,119 @@
-"""
-mock_data.py — Hardcoded realistic option chain data for demo/fallback.
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+import json
+from datetime import datetime, timedelta
+import os
+import uuid
+from dotenv import load_dotenv
+from huggingface_hub import InferenceClient
 
-This data is used when all other data sources fail. It represents a
-realistic Nifty/BankNifty option chain snapshot. Values are internally consistent.
-"""
-import math
+load_dotenv()
+router = APIRouter()
 
+class PromptRequest(BaseModel):
+    text: str
 
-asset_config = {
+SYSTEM_PROMPT = """You are a strict algorithmic extraction API. Your ONLY job is to analyze natural language and map it to a highly structured JSON options trading blueprint.
+You MUST output RAW JSON ONLY. Absolutely NO conversational text, NO pleasantries, NO explanations, and NO markdown formatting (do NOT wrap in ```json).
+
+### EXTRACTION TARGETS & FALLBACKS
+1. "symbol": The specific stock or index mentioned (e.g., "Reliance" -> "RELIANCE", "Airtel" -> "BHARTIARTL", "BankNifty" -> "BANKNIFTY"). Default to "NIFTY" ONLY if no asset is explicitly mentioned.
+2. "budget": The exact numeric capital the user states. Default to 10000 ONLY if no money/capital is mentioned.
+3. "intent": The user's market view. Map to "bullish" (up/rise), "bearish" (down/fall), or "neutral" (sideways/flat).
+4. "timeframe": Map to "this_week", "next_week", or "next_month". Default to "this_week".
+5. "requested_strategy": The exact strategy named (e.g., "Straddle", "Iron Condor"). IF NOT NAMED, infer it ONLY from intent: "bullish" = "Bull Call Spread", "bearish" = "Bear Put Spread", "neutral" = "Iron Condor".
+6. "legs": ONLY populate if the user dictates EXACT strike prices, exact Call/Put types, and Buy/Sell sides (e.g., "buy 19000 call"). Otherwise, leave as an empty array [].
+
+### STRICT BUSINESS LOGIC (THE RULES)
+- RULE 1 (EXPLICIT PRIORITY): You must prioritize the exact variables the user provides. Only use calculated defaults or inferred strategies if the user completely omits that specific detail.
+- RULE 2 (THE FAILURE CONDITION): If the user does not name an explicit strategy, AND you cannot extract their market direction (intent), you MUST fail. Set "success": false and "message": "I need a bit more context. Please clarify your market view (e.g., bullish, bearish) and your budget."
+- RULE 3 (NO LAZINESS): Scan the entire text. Look for hidden contextual clues for budget (rs, rupees, k, capital) and assets.
+
+### JSON SCHEMA FORMAT
+Your output MUST exactly match this structure and data types:
+{
+  "success": true | false,
+  "message": "empty if success, error reason if false",
+  "requested_strategy": "string",
+  "intent": "string",
+  "symbol": "string",
+  "timeframe": "string",
+  "budget": 10000,
+  "legs": []
+}"""
+
+def get_next_thursday(timeframe: str) -> str:
+    today = datetime.today()
+    days_ahead = (3 - today.weekday()) % 7
+    if days_ahead == 0 and timeframe == "this_week":
+        days_ahead = 0
+    if timeframe == "next_week":
+        days_ahead += 7
+    elif timeframe == "next_month":
+        days_ahead += 28 
+    target_date = today + timedelta(days=days_ahead)
+    return target_date.strftime("%Y-%m-%d")
+
+def _build_leg(symbol: str, strike: float, expiry: str, option_type: str, side: str, quantity: int, iv: float, lot_size: int) -> dict:
+    return {
+        "id": str(uuid.uuid4()),
+        "symbol": symbol,
+        "strike": float(strike),
+        "expiry": expiry,
+        "option_type": option_type.lower(),
+        "side": side.lower(),
+        "quantity": max(1, int(quantity)),
+        "lot_size": int(lot_size),
+        "iv": float(iv) / 100.0 if float(iv) > 1 else float(iv), 
+    }
+
+@router.post("/api/prompt-to-trade")
+def prompt_to_trade(request: PromptRequest):
+    hf_token = os.getenv("HUGGINGFACE_API_KEY")
+
+    if not hf_token:
+        raise HTTPException(status_code=500, detail="Hugging Face API token missing.")
+    
+    client = InferenceClient(
+        model="meta-llama/Meta-Llama-3-8B-Instruct",
+        token=hf_token
+    )
+    
+    try:
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": request.text}
+        ]
+        
+        response = client.chat_completion(
+            messages=messages,
+            max_tokens=500,
+            temperature=0.1
+        )
+        
+        raw_text = response.choices[0].message.content.strip()
+        
+        start_idx = raw_text.find('{')
+        end_idx = raw_text.rfind('}')
+        
+        if start_idx == -1 or end_idx == -1:
+            raise ValueError("No JSON object found in LLM response.")
+            
+        clean_json_str = raw_text[start_idx:end_idx+1]
+        data = json.loads(clean_json_str)
+        
+        if not data.get("success"):
+            return data
+
+        # AI extracts the symbol. If it fails, default to NIFTY.
+        symbol = str(data.get("symbol", "NIFTY")).upper()
+        timeframe = data.get("timeframe", "this_week")
+        budget = float(data.get("budget", 10000))
+        expiry_date = get_next_thursday(timeframe)
+        
+        # --- NEW: DYNAMIC ASSET DICTIONARY ---
+        # We define the core metrics for common stocks here. 
+        asset_config = {
                 "LTFIN": {'spot': 315.4, 'lot': 2250, 'step': 5.0},
     "MCDOWELL": {'spot': 1375.2, 'lot': 400, 'step': 10.0},
     "MCDOWELLS": {'spot': 1375.2, 'lot': 400, 'step': 10.0},
@@ -240,110 +346,82 @@ asset_config = {
     "YESBANK": {'spot': 24.55, 'lot': 31100, 'step': 1.0},
     "ZYDUSLIFE": {'spot': 1111.6, 'lot': 900, 'step': 10.0},
 }
-
-
-def _generate_mock_strikes(spot: float, step: int, num_strikes: int, base_iv: float) -> list:
-    strikes = []
-    half_strikes = num_strikes // 2
-    start_strike = (int(spot) // step) * step - (half_strikes * step)
-    
-    for i in range(num_strikes):
-        strike = start_strike + (i * step)
-        distance = strike - spot
         
-        # IV Smile: Lowest at ATM, increases further away
-        strike_iv = base_iv + (abs(distance) / spot) * 0.8
+
+        # If the symbol is in our dictionary, use exact NSE metrics.
+        if symbol in asset_config:
+            spot_price = asset_config[symbol]["spot"]
+            lot_size = asset_config[symbol]["lot"]
+            strike_step = asset_config[symbol]["step"]
+        else:
+            # CRITICAL FIX: If the stock isn't in the dictionary, DO NOT overwrite the symbol!
+            # Just provide a generic, safe fallback for the math to render.
+            spot_price = 1000.0
+            lot_size = 100
+            strike_step = 10
+            
+        # --- DYNAMIC BUDGET SIZING ---
+        margin_per_lot = 25000
+        calculated_quantity = int(budget // margin_per_lot)
+        if calculated_quantity < 1:
+            calculated_quantity = 1
         
-        # Mock pricing logic to ensure monotonic changes and ATM straddle target
-        # ATM straddle target ~ 1.8% of spot (approx 350 for 19000)
-        atm_price = spot * 0.0092 
+        final_legs = []
+        strategy = data.get("requested_strategy", "")
         
-        # Call price decreases as strike increases
-        intrinsic_call = max(0.0, spot - strike)
-        time_value_call = atm_price * math.exp(-abs(distance) / (step * 3))
-        call_ltp = round(intrinsic_call + time_value_call, 2)
+        # --- DYNAMIC RECIPE BUILDER ---
+        if not data.get("legs") or len(data["legs"]) == 0:
+            if "Condor" in str(strategy):
+                final_legs = [
+                    _build_leg(symbol, spot_price - (strike_step * 2), expiry_date, "Put", "Buy", calculated_quantity, 13.5, lot_size),
+                    _build_leg(symbol, spot_price - strike_step, expiry_date, "Put", "Sell", calculated_quantity, 13.6, lot_size),
+                    _build_leg(symbol, spot_price + strike_step, expiry_date, "Call", "Sell", calculated_quantity, 13.7, lot_size),
+                    _build_leg(symbol, spot_price + (strike_step * 2), expiry_date, "Call", "Buy", calculated_quantity, 13.8, lot_size),
+                ]
+            elif "Bear" in str(strategy):
+                final_legs = [
+                    _build_leg(symbol, spot_price, expiry_date, "Put", "Buy", calculated_quantity, 13.8, lot_size),
+                    _build_leg(symbol, spot_price - strike_step, expiry_date, "Put", "Sell", calculated_quantity, 13.9, lot_size),
+                ]
+            else:  # Default to Bull Call Spread
+                final_legs = [
+                    _build_leg(symbol, spot_price, expiry_date, "Call", "Buy", calculated_quantity, 13.8, lot_size),
+                    _build_leg(symbol, spot_price + strike_step, expiry_date, "Call", "Sell", calculated_quantity, 13.9, lot_size),
+                ]
+        else:
+            for leg in data["legs"]:
+                final_legs.append(
+                    _build_leg(
+                        symbol=symbol,
+                        strike=leg.get("strike", spot_price),
+                        expiry=leg.get("expiry", expiry_date),
+                        option_type=leg.get("option_type", "Call"),
+                        side=leg.get("side", "Buy"),
+                        quantity=leg.get("quantity", calculated_quantity),
+                        iv=leg.get("iv", 13.8),
+                        lot_size=lot_size
+                    )
+                )
+                
+        return {
+            "success": True,
+            "message": f"Successfully loaded {strategy or 'custom strategy'} for {symbol} (Qty: {calculated_quantity} lots).",
+            "requested_strategy": strategy,
+            "symbol": symbol,
+            "legs": final_legs
+        }
         
-        # Put price increases as strike increases
-        intrinsic_put = max(0.0, strike - spot)
-        time_value_put = atm_price * math.exp(-abs(distance) / (step * 3))
-        put_ltp = round(intrinsic_put + time_value_put, 2)
-
-        # Spread logic
-        spread_multiplier = 1 + (abs(distance) / (step * 10))
-        
-        # Delta logic
-        call_delta = max(0.01, min(0.99, 0.5 - (distance / (step * 10))))
-        put_delta = call_delta - 1.0
-
-        # OI and Volume peak at ATM and major round numbers
-        oi_multiplier = max(0.1, 1.0 - (abs(distance) / (step * 5)))
-        base_oi = 150000 if i % 5 == 0 else 50000
-
-        strikes.append({
-            "strike": float(strike),
-            "call": {
-                "ltp": call_ltp,
-                "bid": round(call_ltp * 0.98, 2),
-                "ask": round(call_ltp * 1.02 + (1.5 * spread_multiplier), 2),
-                "oi": int(base_oi * oi_multiplier),
-                "volume": int(base_oi * oi_multiplier * 1.5),
-                "iv": round(strike_iv, 4),
-                "delta": round(call_delta, 2),
-                "theta": -15.5,
-                "gamma": 0.002,
-                "vega": 12.0
-            },
-            "put": {
-                "ltp": put_ltp,
-                "bid": round(put_ltp * 0.98, 2),
-                "ask": round(put_ltp * 1.02 + (1.5 * spread_multiplier), 2),
-                "oi": int(base_oi * oi_multiplier * 0.9),
-                "volume": int(base_oi * oi_multiplier * 1.4),
-                "iv": round(strike_iv, 4),
-                "delta": round(put_delta, 2),
-                "theta": -14.2,
-                "gamma": 0.002,
-                "vega": 12.0
-            }
-        })
-    return strikes
-
-def get_option_chain(symbol: str) -> dict:
-    """
-    Returns full option chain in internal format.
-    Supports: "NIFTY", "BANKNIFTY" (case-insensitive).
-    Returns NIFTY data for unknown symbols.
-    """
-    sym = symbol.upper()
-    
-    if sym in asset_config:
-        spot = asset_config[sym]["spot"]
-        lot_size = asset_config[sym]["lot"]
-        step = asset_config[sym]["step"]
-        # Maintain the 1.8% straddle logic dynamically
-        atm_straddle = spot * 0.018 
-        current_iv = 0.15
-    else: 
-        # Safe Default NIFTY if symbol isn't found
-        sym = "NIFTY"
-        spot = 19000.0
-        lot_size = 50
-        step = 100
-        atm_straddle = 350.0
-        current_iv = 0.138
-    # -----------------------------------
-
-    return {
-        "symbol": sym,
-        "spot": spot,
-        "timestamp": "2024-07-01T10:30:00",
-        "expiry": "2024-07-25",
-        "days_to_expiry": 24,
-        "iv_rank": 42.0,
-        "current_iv": current_iv,
-        "iv_52w_high": 0.28,
-        "iv_52w_low": 0.09,
-        "atm_straddle_price": atm_straddle,
-        "lot_size": lot_size,
-        "strikes": _generate_mock_strikes(spot, step, 21, current_iv)
-    }
+    except Exception as e:
+        print(f"\n❌ BACKEND AI CRASH: {str(e)}\n")
+        fallback_expiry = get_next_thursday("this_week")
+        return {
+            "success": True,
+            "message": "Unable to extract context. Loading fallback Iron Condor.",
+            "symbol": "NIFTY",
+            "legs": [
+                _build_leg("NIFTY", 18800, fallback_expiry, "Put", "Buy", 1, 13.5, 50),
+                _build_leg("NIFTY", 18900, fallback_expiry, "Put", "Sell", 1, 13.6, 50),
+                _build_leg("NIFTY", 19100, fallback_expiry, "Call", "Sell", 1, 13.7, 50),
+                _build_leg("NIFTY", 19200, fallback_expiry, "Call", "Buy", 1, 13.8, 50),
+            ]
+        }

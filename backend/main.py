@@ -30,7 +30,7 @@ AI provider toggle (config.py / .env):
 import asyncio
 import logging
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -41,7 +41,7 @@ from config import settings
 from database import create_tables
 from utils.logger import setup_logging
 from utils.validators import validate_legs, validate_symbol
-
+from engine.ai_prompt_router import router as ai_router
 # Quant / data / engine imports
 from data.fallback import get_option_chain
 from engine import strategy_builder
@@ -73,6 +73,116 @@ setup_logging(
     log_format=getattr(settings, "LOG_FORMAT", "text"),
 )
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Strategy DNA lookup map
+# ---------------------------------------------------------------------------
+STRATEGY_DNA_MAP = {
+    "iron_condor": {
+        "strategy_type": "iron_condor",
+        "display_name": "Iron Condor",
+        "goal": "Collect premium by selling options on both sides, profiting when the underlying stays within a range",
+        "best_market": "Sideways market with high implied volatility",
+        "worst_market": "Strong directional move in either direction",
+        "time_sensitivity": "High — time decay (theta) works in your favour every day",
+        "volatility_sensitivity": "High — built for high IV environments; IV crush benefits this strategy",
+        "max_risk_description": "Limited to the width of the wider spread minus total premium received",
+        "max_reward_description": "Total net premium collected at entry — realised if both short options expire worthless",
+        "key_risks": ["Strong breakout beyond short strikes", "IV spike expanding short premiums", "Gap opening on news/event"],
+        "ideal_entry_conditions": ["IV Rank above 60", "Sideways trend confirmed", "15+ days to expiry", "Adequate liquidity at all four strikes"]
+    },
+    "long_straddle": {
+        "strategy_type": "long_straddle",
+        "display_name": "Long Straddle",
+        "goal": "Profit from a large move in either direction by buying both a call and put at the same strike",
+        "best_market": "High uncertainty — any large move (earnings, RBI announcement, budget)",
+        "worst_market": "Sideways market where the underlying goes nowhere",
+        "time_sensitivity": "High — time decay (theta) works against you every day you hold",
+        "volatility_sensitivity": "High — benefits from IV expansion; hurt by IV crush after the event",
+        "max_risk_description": "Limited to total premium paid for both call and put",
+        "max_reward_description": "Theoretically unlimited on the call side; substantial on the put side",
+        "key_risks": ["IV crush after the anticipated event", "Underlying stays range-bound", "Time decay eroding value"],
+        "ideal_entry_conditions": ["IV Rank below 40", "Known catalyst event upcoming", "7+ days to expiry"]
+    },
+    "bull_call_spread": {
+        "strategy_type": "bull_call_spread",
+        "display_name": "Bull Call Spread",
+        "goal": "Profit from moderate upside in the underlying while limiting both cost and risk",
+        "best_market": "Moderately bullish — expecting upside but not a runaway rally",
+        "worst_market": "Bearish or sideways — loses the net debit paid if underlying stays flat",
+        "time_sensitivity": "Moderate — time decay slightly works against you on the long leg",
+        "volatility_sensitivity": "Low to moderate — less sensitive to IV than outright long calls",
+        "max_risk_description": "Limited to net debit paid (buy price minus sell price of the spread)",
+        "max_reward_description": "Limited to spread width minus net debit — realised if underlying closes above upper strike at expiry",
+        "key_risks": ["Underlying fails to move up enough by expiry", "Sharp bearish reversal", "Time decay on long leg"],
+        "ideal_entry_conditions": ["Bullish trend confirmed", "7+ days to expiry", "Reasonable IV levels"]
+    },
+    "long_strangle": {
+        "strategy_type": "long_strangle",
+        "display_name": "Long Strangle",
+        "goal": "Profit from a large move in either direction using OTM options for lower cost than a straddle",
+        "best_market": "High uncertainty with potential for large move — cheaper than straddle",
+        "worst_market": "Sideways market with no significant move",
+        "time_sensitivity": "High — theta decay accelerates near expiry",
+        "volatility_sensitivity": "High — needs IV expansion or large underlying move",
+        "max_risk_description": "Limited to total premium paid for both OTM call and put",
+        "max_reward_description": "Theoretically unlimited on upside; substantial on downside",
+        "key_risks": ["Underlying stays between the two strikes", "IV crush", "Accelerating time decay"],
+        "ideal_entry_conditions": ["IV Rank below 40", "Known catalyst event upcoming", "10+ days to expiry"]
+    },
+    "bull_put_spread": {
+        "strategy_type": "bull_put_spread",
+        "display_name": "Bull Put Spread",
+        "goal": "Collect premium by selling a put spread, profiting when the underlying stays above the short put strike",
+        "best_market": "Bullish to neutral — underlying holding above support",
+        "worst_market": "Sharp bearish move below the short put strike",
+        "time_sensitivity": "High — theta works in your favour as a premium seller",
+        "volatility_sensitivity": "Moderate — benefits from high IV at entry (sell expensive puts)",
+        "max_risk_description": "Limited to spread width minus premium received",
+        "max_reward_description": "Net premium received at entry — realised if underlying closes above short put at expiry",
+        "key_risks": ["Sharp bearish breakdown", "IV spike expanding the spread value", "Gap down on news"],
+        "ideal_entry_conditions": ["Bullish trend", "IV Rank above 50", "7+ days to expiry", "Clear support level above short strike"]
+    },
+    "bear_put_spread": {
+        "strategy_type": "bear_put_spread",
+        "display_name": "Bear Put Spread",
+        "goal": "Profit from moderate downside in the underlying while limiting cost and risk",
+        "best_market": "Moderately bearish — expecting decline but not a crash",
+        "worst_market": "Bullish or sideways — loses the net debit if underlying stays flat or rises",
+        "time_sensitivity": "Moderate — time decay slightly works against you",
+        "volatility_sensitivity": "Low to moderate — less sensitive than outright long puts",
+        "max_risk_description": "Limited to net debit paid",
+        "max_reward_description": "Limited to spread width minus net debit — realised if underlying closes below lower strike",
+        "key_risks": ["Underlying fails to move down", "Bullish reversal", "Time decay on long put"],
+        "ideal_entry_conditions": ["Bearish trend confirmed", "7+ days to expiry", "Clear resistance above entry"]
+    },
+    "covered_call": {
+        "strategy_type": "covered_call",
+        "display_name": "Covered Call",
+        "goal": "Generate income by selling a call against an existing long stock/futures position",
+        "best_market": "Neutral to mildly bullish — stock expected to stay below call strike",
+        "worst_market": "Strong rally above the call strike — caps your upside profit",
+        "time_sensitivity": "High — theta decay on the short call benefits you as seller",
+        "volatility_sensitivity": "Moderate — high IV is good at entry (sell expensive calls); IV drop after helps",
+        "max_risk_description": "Effectively the cost of the underlying position minus premium received",
+        "max_reward_description": "Premium received plus any gain up to the call strike price",
+        "key_risks": ["Sharp rally above strike (unlimited opportunity cost)", "Sharp decline in underlying", "Early assignment risk on American options"],
+        "ideal_entry_conditions": ["Already hold underlying position", "IV Rank above 50", "Neutral to mildly bullish outlook", "15+ days to expiry"]
+    },
+    "custom": {
+        "strategy_type": "custom",
+        "display_name": "Custom Strategy",
+        "goal": "User-defined multi-leg strategy",
+        "best_market": "Depends on leg configuration",
+        "worst_market": "Depends on leg configuration",
+        "time_sensitivity": "See theta in Greeks panel",
+        "volatility_sensitivity": "See vega in Greeks panel",
+        "max_risk_description": "See Max Loss in metrics panel",
+        "max_reward_description": "See Max Profit in metrics panel",
+        "key_risks": ["Depends on specific leg structure"],
+        "ideal_entry_conditions": ["Defined by user strategy"]
+    }
+}
 
 # ---------------------------------------------------------------------------
 # FastAPI application
@@ -107,7 +217,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
+app.include_router(ai_router)
 # ---------------------------------------------------------------------------
 # Startup event — initialise DB tables before first request
 # ---------------------------------------------------------------------------
@@ -190,6 +300,47 @@ async def health_check():
         "ai_provider": settings.AI_PROVIDER,
         "version": "1.0.0",
     }
+
+
+# ---------------------------------------------------------------------------
+# GET /strategy/dna/{strategy_type}
+# Returns plain-English strategy explanation for non-experts.
+# ---------------------------------------------------------------------------
+@app.get("/strategy/dna/{strategy_type}", tags=["strategy"])
+async def get_strategy_dna(strategy_type: str):
+    """
+    Returns Strategy DNA for a given strategy type.
+    Pure data lookup — no computation needed.
+    """
+    dna = STRATEGY_DNA_MAP.get(strategy_type)
+    if not dna:
+        return {"dna": None}
+    return {"dna": dna}
+
+
+# ---------------------------------------------------------------------------
+# POST /strategy/time-decay
+# Returns precomputed payoff snapshots across time for the Time Slider.
+# ---------------------------------------------------------------------------
+@app.post("/strategy/time-decay", tags=["strategy"])
+async def get_time_decay(request: AnalyzeRequest):
+    """
+    Returns precomputed payoff snapshots across time.
+    Called once when user opens the Payoff tab after analysis.
+    """
+    try:
+        chain, mode = get_option_chain(request.symbol)
+        spot = chain["spot"]
+        dte = chain["days_to_expiry"]
+        current_iv = chain["current_iv"]
+        legs_dicts = [leg.model_dump() for leg in request.legs]
+
+        series = strategy_builder.compute_time_decay_series(legs_dicts, spot, current_iv, dte)
+        return {"series": series, "data_mode": mode}
+    except Exception as e:
+        logger.error(f"Time decay computation failed: {e}")
+        return {"series": {"snapshots": [], "entry_max_profit": 0, "entry_max_loss": 0},
+                "data_mode": "demo"}
 
 
 # ---------------------------------------------------------------------------
@@ -354,10 +505,16 @@ async def save_strategy(request: SaveStrategyRequest):
     spot = chain.get("spot", 19000)
     iv = chain.get("current_iv", 0.15)
 
+    # FIX: snapshot the legs that came back from build_strategy_metrics
+    # (metrics["legs"]) rather than the raw request legs. Those carry
+    # entry_price for each leg; without it the WebSocket health monitor
+    # can't compute real PnL and silently reports 0 forever.
+    legs_for_snapshot = metrics.get("legs") or legs_as_dicts
+
     strategy_id = snapshot.create_strategy_snapshot(
         symbol=request.symbol.upper(),
         strategy_type=request.strategy_type,
-        legs=legs_as_dicts,
+        legs=legs_for_snapshot,
         metrics=metrics,
         spot=spot,
         iv=iv,
@@ -523,7 +680,7 @@ async def health_monitor_ws(websocket: WebSocket, strategy_id: str):
                 "diff": diff,
                 "explanation": explanation,
                 "data_mode": "live", # UI expects this field
-                "checked_at": datetime.utcnow().isoformat()
+                "checked_at": datetime.now(timezone.utc).isoformat()
             }
             await websocket.send_json(payload)
 

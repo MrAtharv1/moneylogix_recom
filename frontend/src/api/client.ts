@@ -13,6 +13,8 @@ import type {
   DataMode,
   AdjustmentSimulateResponse,
   HealthEvent,
+  StrategyDNA,
+  TimeDecaySeries,
 } from '../types/strategy';
 
 const api = axios.create({
@@ -160,4 +162,34 @@ export const getHealthHistory = async (strategyId: string): Promise<HealthEvent[
   const { data } = await api.get(`/strategy/${strategyId}/health-history`);
   if (isErrorResult(data)) return [];
   return data?.history ?? [];
+};
+
+// ---- Strategy DNA ----
+
+export const getStrategyDNA = async (strategyType: string): Promise<StrategyDNA | null> => {
+  try {
+    const { data } = await api.get(`/strategy/dna/${strategyType}`);
+    return data.dna ?? null;
+  } catch {
+    return null;
+  }
+};
+
+// ---- Time Decay (Time Slider) ----
+
+export const getTimeDecay = async (
+  legs: Leg[],
+  strategyType: StrategyType,
+  symbol: string
+): Promise<TimeDecaySeries | null> => {
+  try {
+    const { data } = await api.post('/strategy/time-decay', {
+      legs,
+      strategy_type: strategyType,
+      symbol
+    });
+    return data.series ?? null;
+  } catch {
+    return null;
+  }
 };

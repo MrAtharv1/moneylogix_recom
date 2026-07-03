@@ -1,6 +1,5 @@
 /**
- * StressTestPanel — Stress test tab content. Fetches on first render (or on button click).
- * Shows loading state while computing 35 scenarios.
+ * StressTestPanel — Stress test tab content.
  */
 import { useState, useEffect, useRef } from 'react';
 import type { Leg, StressTestResult } from '../../types/strategy';
@@ -28,23 +27,28 @@ export function StressTestPanel({ legs, symbol, isVisible }: Props) {
   useEffect(() => {
     if (!isVisible) return;
     if (legs.length === 0) return;
-    // Cache result — don't refetch unless legs change
     if (result && !legsChanged(cachedLegsRef.current, legs)) return;
 
     let cancelled = false;
     setIsLoading(true);
     setError(null);
 
-    runStressTest(legs, symbol).then((data) => {
-      if (cancelled) return;
-      if (data) {
-        setResult(data);
-        cachedLegsRef.current = legs;
-      } else {
-        setError('Stress test failed. Make sure backend is running.');
-      }
-      setIsLoading(false);
-    });
+    runStressTest(legs, symbol)
+      .then((data) => {
+        if (cancelled) return;
+        if (data) {
+          setResult(data);
+          cachedLegsRef.current = legs;
+        } else {
+          setError('Stress test failed. Make sure backend is running.');
+        }
+        setIsLoading(false);
+      })
+      .catch((err: any) => {
+        if (cancelled) return;
+        setError(err?.message || 'Stress test failed. Network error.');
+        setIsLoading(false);
+      });
 
     return () => {
       cancelled = true;

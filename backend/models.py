@@ -84,6 +84,13 @@ class PayoffPoint(BaseModel):
     price: float
     pnl: float
 
+class RiskScore(BaseModel):
+    score: int                     # 0-100, rounded
+    tier: str                      # "Conservative" | "Moderate" | "Aggressive"
+    color: str                     # "green" | "amber" | "red"
+    breakdown: Dict                # {delta, gamma, vega, margin, maxLoss, liquidity}
+    interpretation: str            # plain English summary
+
 class StrategyMetrics(BaseModel):
     legs: List[Leg]
     greeks_per_leg: List[Greeks]
@@ -93,6 +100,7 @@ class StrategyMetrics(BaseModel):
     payoff_curve: List[PayoffPoint]
     iv_rank: float = 0.0
     expected_move_pct: float = 0.0
+    risk_score: Optional[RiskScore] = None
 
 class AssumptionCheck(BaseModel):
     name: str
@@ -177,3 +185,16 @@ class HealthEvent(BaseModel):
     explanation: str
     data_mode: str
     checked_at: str                # ISO timestamp
+
+class StrategyDNA(BaseModel):
+    strategy_type: str
+    display_name: str
+    goal: str
+    best_market: str
+    worst_market: str
+    time_sensitivity: str
+    volatility_sensitivity: str
+    max_risk_description: str
+    max_reward_description: str
+    key_risks: List[str]
+    ideal_entry_conditions: List[str]

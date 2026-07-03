@@ -1,6 +1,5 @@
 /**
  * LegRow — Single editable leg row with copilot hint below it.
- * Calls /copilot/hint after 300ms debounce when any field changes.
  */
 import { useState, useEffect, useRef } from 'react';
 import { getCopilotHint } from '../../api/client';
@@ -10,7 +9,7 @@ import { CopilotHint } from './CopilotHint';
 interface Props {
   leg: Leg;
   index: number;
-  metricsBeforeChange?: unknown; // for copilot comparison
+  metricsBeforeChange?: unknown;
   onUpdate: (updates: Partial<Leg>) => void;
   onDelete: () => void;
 }
@@ -20,27 +19,39 @@ export function LegRow({ leg, index, metricsBeforeChange, onUpdate, onDelete }: 
   const [isHintLoading, setIsHintLoading] = useState(false);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const isFirstRender = useRef(true);
+  const prevLegRef = useRef<Leg>(leg);
 
   useEffect(() => {
-    // Skip the hint fetch on mount — only fire when the user actually edits.
     if (isFirstRender.current) {
       isFirstRender.current = false;
+      prevLegRef.current = leg;
       return;
     }
 
-    setHint(''); // clear stale hint immediately when a new edit starts
+    // Skip if nothing actually changed
+    if (JSON.stringify(prevLegRef.current) === JSON.stringify(leg)) {
+      return;
+    }
+    prevLegRef.current = leg;
+
+    setHint('');
     setIsHintLoading(true);
     clearTimeout(debounceTimer.current);
 
     debounceTimer.current = setTimeout(async () => {
-      const result = await getCopilotHint({
-        changed_leg_before: leg, // The backend needs both, so we pass the current leg to both for now to satisfy the model
-        changed_leg_after: leg,
-        metrics_before: metricsBeforeChange || {}, // Ensure it's never undefined
-        metrics_after: {} // Provide an empty object to satisfy the model requirement
-      });
-      setHint(result);
-      setIsHintLoading(false);
+      try {
+        const result = await getCopilotHint({
+          changed_leg_before: prevLegRef.current,
+          changed_leg_after: leg,
+          metrics_before: metricsBeforeChange || {},
+          metrics_after: {}
+        });
+        setHint(result);
+      } catch (e) {
+        setHint('');
+      } finally {
+        setIsHintLoading(false);
+      }
     }, 300);
 
     return () => clearTimeout(debounceTimer.current);
