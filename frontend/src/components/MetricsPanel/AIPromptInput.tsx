@@ -1,8 +1,23 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { getPromptToTrade } from '../../api/client';
 
 interface AIPromptInputProps {
   onStrategyGenerated: (data: { legs: any[]; symbol: string; strategyName?: string }) => void;
+}
+
+// Sentiment patterns
+const SENTIMENT_PATTERNS = [
+  { test: (t: string) => /\b(crash|collapse|panic|fear|worried|scared|stress|fall)\b/i.test(t), message: "📉 Fear detected — Iron Condors and defined-risk spreads perform well in uncertain markets.", type: 'fear' },
+  { test: (t: string) => /\b(greed|moon|guaranteed|sure thing|can't lose|risk free|rocket)\b/i.test(t), message: "⚠️ High conviction detected — consider defined-risk strategies to protect against being wrong.", type: 'greed' },
+  { test: (t: string) => /\b(sideways|range.?bound|flat|stuck|consolidat)\b/i.test(t), message: "📊 Range-bound view — Iron Condor or Short Straddle may suit this outlook.", type: 'neutral' },
+  { test: (t: string) => /\b(breakout|big move|volatile|event|results|budget|rbi)\b/i.test(t), message: "🎯 High volatility expected — Long Straddle or Strangle benefits from large moves.", type: 'volatile' },
+];
+
+function detectSentiment(text: string) {
+  for (const pattern of SENTIMENT_PATTERNS) {
+    if (pattern.test(text)) return pattern;
+  }
+  return null;
 }
 
 export const AIPromptInput: React.FC<AIPromptInputProps> = ({ onStrategyGenerated }) => {
@@ -11,14 +26,23 @@ export const AIPromptInput: React.FC<AIPromptInputProps> = ({ onStrategyGenerate
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [showTooltip, setShowTooltip] = useState(false);
+  const [sentiment, setSentiment] = useState<{message: string; type: string} | null>(null);
   const recognitionRef = useRef<any>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const isSpeechSupported = 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window;
+
+  useEffect(() => {
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      const t = text.toLowerCase();
+      setSentiment(detectSentiment(t));
+    }, 500);
+    return () => clearTimeout(debounceRef.current);
+  }, [text]);
 
   const startSpeechRecognition = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      setMessage({ type: 'error', text: 'Voice speech recognition not supported in this browser. Please type your query.' });
-      return;
-    }
+    if (!SpeechRecognition) return;
 
     recognitionRef.current = new SpeechRecognition();
     recognitionRef.current.continuous = false;
@@ -104,23 +128,25 @@ export const AIPromptInput: React.FC<AIPromptInputProps> = ({ onStrategyGenerate
         />
         
         <div className="absolute right-1.5 flex items-center gap-1.5">
-          <button
-            onClick={startSpeechRecognition}
-            disabled={isLoading}
-            className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
-              isListening ? 'bg-loss/10 text-loss' : 'bg-transparent text-secondary hover:bg-surface/80 hover:text-primary'
-            } disabled:opacity-50 focus:outline-none`}
-            title="Speak strategy"
-          >
-            {isListening ? (
-              <span className="relative flex h-3 w-3">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-loss opacity-75"></span>
-                <span className="relative inline-flex h-3 w-3 rounded-full bg-loss"></span>
-              </span>
-            ) : (
-              '🎤'
-            )}
-          </button>
+          {isSpeechSupported && (
+            <button
+              onClick={startSpeechRecognition}
+              disabled={isLoading}
+              className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
+                isListening ? 'bg-loss/10 text-loss' : 'bg-transparent text-secondary hover:bg-surface/80 hover:text-primary'
+              } disabled:opacity-50 focus:outline-none`}
+              title="Speak strategy"
+            >
+              {isListening ? (
+                <span className="relative flex h-3 w-3">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-loss opacity-75"></span>
+                  <span className="relative inline-flex h-3 w-3 rounded-full bg-loss"></span>
+                </span>
+              ) : (
+                '🎤'
+              )}
+            </button>
+          )}
           <button
             onClick={() => handleSubmit('')}
             disabled={isLoading || !text.trim()}
@@ -130,6 +156,12 @@ export const AIPromptInput: React.FC<AIPromptInputProps> = ({ onStrategyGenerate
           </button>
         </div>
       </div>
+
+      {sentiment && (
+        <div className="relative z-10 mt-2 rounded-xl border border-accent/20 bg-accent/10 px-3 py-2 text-xs text-accent/90 animate-in fade-in">
+          {sentiment.message}
+        </div>
+      )}
 
       {message && (
         <div className={`relative z-10 mt-1 rounded-xl border px-3 py-2 text-xs ${

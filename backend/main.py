@@ -2,36 +2,6 @@
 main.py — FastAPI application entry point for MoneyLogix Strategy Builder.
 
 Run with: uvicorn main:app --reload --port 8000
-
-Architecture overview:
-  ┌─────────────────────────────────────────────────────────┐
-  │  React Frontend (port 5173)                             │
-  │    ↓ REST calls (strategy analysis, copilot hints)      │
-  │    ↓ WebSocket (real-time health monitoring)            │
-  ├─────────────────────────────────────────────────────────┤
-  │  FastAPI (this file)                                    │
-  │    ↓ quant engine (blackscholes, portfolio_greeks, ...)  │
-  │    ↓ data layer (option chain with 4-tier fallback)     │
-  │    ↓ AI layer (explainer + copilot, pluggable provider) │
-  │    ↓ persistence (SQLite snapshots + health history)    │
-  └─────────────────────────────────────────────────────────┘
-
-4-tier data fallback (handled in data/fallback.py):
-  1. Live NSE data feed
-  2. Redis/in-memory cache (< 5 min stale)
-  3. Saved snapshot from SQLite
-  4. Mock data (always succeeds)
-
-AI provider toggle (config.py / .env):
-  AI_PROVIDER=mock   → no API calls, template responses, no key needed
-  AI_PROVIDER=claude → calls Anthropic API, falls back to mock on failure
-  AI_PROVIDER=huggingface → calls HuggingFace Inference API
-"""
-
-"""
-main.py — FastAPI application entry point for MoneyLogix Strategy Builder.
-
-Run with: uvicorn main:app --reload --port 8000
 """
 
 import asyncio
@@ -168,6 +138,19 @@ STRATEGY_DNA_MAP = {
         "key_risks": ["Sharp rally above strike (unlimited opportunity cost)", "Sharp decline in underlying", "Early assignment risk on American options"],
         "ideal_entry_conditions": ["Already hold underlying position", "IV Rank above 50", "Neutral to mildly bullish outlook", "15+ days to expiry"]
     },
+    "bear_call_spread": {
+        "strategy_type": "bear_call_spread",
+        "display_name": "Bear Call Spread",
+        "goal": "Collect premium by selling a call spread, profiting when the underlying stays below the short call strike",
+        "best_market": "Bearish to neutral — underlying holding below resistance",
+        "worst_market": "Sharp bullish rally above the short call strike",
+        "time_sensitivity": "High — theta works in your favour as a premium seller",
+        "volatility_sensitivity": "Moderate — benefits from high IV at entry",
+        "max_risk_description": "Limited to spread width minus premium received",
+        "max_reward_description": "Net premium received at entry — realised if underlying closes below short call",
+        "key_risks": ["Sharp bullish breakout", "IV spike expanding the spread value"],
+        "ideal_entry_conditions": ["Bearish trend", "IV Rank above 50", "7+ days to expiry", "Clear resistance level"]
+    },
     "custom": {
         "strategy_type": "custom",
         "display_name": "Custom Strategy",
@@ -186,9 +169,13 @@ STRATEGY_DNA_MAP = {
 # ─── FASTAPI SETUP ───────────────────────────────────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Runs once on startup. Creates DB tables (async) and logs config."""
-    await create_tables()
-    # Initialize AI Provider Singleton early
+    """Runs once on startup. Creates DB tables and logs config."""
+    # Add await if your create_tables is async
+    if asyncio.iscoroutinefunction(create_tables):
+        await create_tables()
+    else:
+        create_tables()
+        
     from ai.base_provider import init_provider
     init_provider()
     logger.info(
@@ -209,8 +196,8 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # <-- Change this from settings.CORS_ORIGINS to ["*"]
-    allow_credentials=True,
+    allow_origins=["*"], 
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -296,7 +283,6 @@ async def get_time_decay(request: AnalyzeRequest):
         spot, dte, current_iv = chain["spot"], chain["days_to_expiry"], chain["current_iv"]
         legs_dicts = [json.loads(leg.json()) for leg in request.legs]
         
-        # FIX: Enrich the legs with entry_price so the Time Slider PnL exactly matches the Payoff Chart PnL
         legs_enriched = _enrich_legs_with_entry_price(legs_dicts, chain)
         
         series = strategy_builder.compute_time_decay_series(legs_enriched, spot, current_iv, dte)
@@ -309,6 +295,7 @@ async def get_time_decay(request: AnalyzeRequest):
 async def get_chain(symbol: str):
     errors = validate_symbol(symbol.upper())
     if errors: raise HTTPException(status_code=400, detail={"errors": errors})
+    
     chain, mode = await get_option_chain(symbol.upper())
     return {"chain": chain, "data_mode": DataMode(mode=mode, timestamp=datetime.now(timezone.utc).isoformat())}
 
@@ -319,9 +306,7 @@ async def analyze_strategy(request: AnalyzeRequest):
     errors = validate_legs(legs_as_dicts)
     if errors: raise HTTPException(status_code=400, detail={"errors": errors})
 
-    # FIX: Await the new async strategy_builder
     metrics, mode = await strategy_builder.build_strategy_metrics(legs=legs_as_dicts, symbol=request.symbol.upper())
-    
     chain, _ = await get_option_chain(request.symbol.upper())
     market_state = _build_market_state(metrics, chain, mode)
     assumptions = assumption_checker.check_assumptions(strategy_type=request.strategy_type, market_state=market_state)
@@ -345,8 +330,7 @@ async def strategy_payoff(request: dict):
     curve = compute_payoff_curve(legs, spot, num_points=num_points)
     breakevens = find_breakevens(curve)
     
-    # Pass 'legs' down for analytic evaluation (unlimited risk fix)
-    risk = compute_max_profit_loss(curve, legs=legs)
+    risk = compute_max_profit_loss(curve)
 
     return {
         "payoff_curve": curve,
@@ -362,8 +346,6 @@ async def check_strategy_assumptions(request: dict):
 
     chain, mode = await get_option_chain(symbol)
     legs = _enrich_legs_with_entry_price(legs, chain)
-    
-    # FIX: Await the new async strategy_builder
     metrics, _ = await strategy_builder.build_strategy_metrics(legs=legs, symbol=symbol)
     market_state = _build_market_state(metrics, chain, mode)
     
@@ -397,9 +379,7 @@ async def save_strategy(request: SaveStrategyRequest):
     errors = validate_legs(legs_as_dicts)
     if errors: raise HTTPException(status_code=400, detail={"errors": errors})
 
-    # FIX: Await the new async strategy_builder
     metrics, mode = await strategy_builder.build_strategy_metrics(legs=legs_as_dicts, symbol=request.symbol.upper())
-    
     chain, _ = await get_option_chain(request.symbol.upper())
     spot, iv = chain.get("spot", 19000), chain.get("current_iv", 0.15)
     legs_for_snapshot = metrics.get("legs") or legs_as_dicts
@@ -412,7 +392,6 @@ async def save_strategy(request: SaveStrategyRequest):
 
 @app.get("/strategy/{strategy_id}/history", tags=["strategy"])
 async def get_strategy_history(strategy_id: str):
-    # Await the async access mechanism
     history = await snapshot.get_health_history(strategy_id)
     if history is None:
         raise HTTPException(status_code=404, detail=f"Strategy {strategy_id} not found")
@@ -423,13 +402,7 @@ async def simulate_adjustment_route(request: AdjustmentSimulateRequest):
     orig_legs = [json.loads(leg.json()) for leg in request.original_legs]
     adj_legs = [json.loads(leg.json()) for leg in request.adjusted_legs]
     
-    # If adjustment_simulator calls get_option_chain internally, we await it here
-    # (Assumes adjustment_simulator.simulate_adjustment is async if it makes network calls)
-    if asyncio.iscoroutinefunction(adjustment_simulator.simulate_adjustment):
-        result = await adjustment_simulator.simulate_adjustment(original_legs=orig_legs, adjusted_legs=adj_legs, symbol=request.symbol.upper())
-    else:
-        # Fallback if you haven't refactored simulator to be async internally yet
-        result = adjustment_simulator.simulate_adjustment(original_legs=orig_legs, adjusted_legs=adj_legs, symbol=request.symbol.upper())
+    result = await adjustment_simulator.simulate_adjustment(original_legs=orig_legs, adjusted_legs=adj_legs, symbol=request.symbol.upper())
         
     mode_str = result.pop("data_mode", "demo")
     result["data_mode"] = {"mode": mode_str, "timestamp": datetime.now(timezone.utc).isoformat()}
@@ -504,7 +477,6 @@ async def health_monitor_ws(websocket: WebSocket, strategy_id: str):
             explanation = ""
             if diff.get("has_changes"):
                 explanation = await explain_health_change(diff=diff, strategy_type=entry["strategy_type"], entry_state=entry["entry_state"], current_state=current_state)
-                # Await the new async logging framework
                 await snapshot.log_health_event(strategy_id, diff, explanation)
 
             payload = {"diff": diff, "explanation": explanation, "data_mode": "live", "checked_at": datetime.now(timezone.utc).isoformat()}

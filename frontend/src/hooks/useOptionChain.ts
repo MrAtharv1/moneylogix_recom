@@ -12,7 +12,7 @@ export function useOptionChain(symbol: string) {
     setError(null);
     const result = await getOptionChain(symbol);
     if (result) {
-      setChain(result);
+      setChain(result.chain); // <-- FIX: extract the nested chain
     } else {
       setError('Failed to load option chain.');
     }
@@ -29,7 +29,7 @@ export function useOptionChain(symbol: string) {
       try {
         const result = await getOptionChain(symbol);
         if (mounted && !controller.signal.aborted) {
-          if (result) setChain(result);
+          if (result) setChain(result.chain); // <-- FIX: extract the nested chain
           else setError('Failed to load option chain.');
         }
       } catch (e) {

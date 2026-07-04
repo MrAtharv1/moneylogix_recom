@@ -6,6 +6,7 @@ export type Side = "buy" | "sell";
 export type StrategyType =
   | "iron_condor" | "long_straddle" | "long_strangle"
   | "bull_call_spread" | "bull_put_spread" | "bear_put_spread"
+  | "bear_call_spread"
   | "covered_call" | "custom";
 export type DataModeType = "live" | "cached" | "snapshot" | "demo";
 

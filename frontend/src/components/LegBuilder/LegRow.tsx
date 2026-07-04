@@ -106,7 +106,7 @@ export function LegRow({ leg, index, metricsBeforeChange, onUpdate, onDelete }: 
             // Slicing to guarantee YYYY-MM-DD format
             value={leg.expiry.split('T')[0]}
             onChange={(e) => onUpdate({ expiry: e.target.value })}
-            className="h-8 w-full rounded-md border-transparent bg-transparent px-2 text-sm text-primary transition-colors hover:bg-surface focus:bg-surface focus:outline-none focus:ring-1 focus:ring-accent/50"
+            className="h-8 w-full rounded-md border-transparent bg-transparent px-2  text-sm text-primary transition-colors hover:bg-surface focus:bg-surface focus:outline-none focus:ring-1 focus:ring-accent/50"
             aria-label="Expiry"
           />
           <select

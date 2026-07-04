@@ -9,6 +9,10 @@ import { RiskMetrics } from '../components/MetricsPanel/RiskMetrics';
 import { RiskScore } from '../components/MetricsPanel/RiskScore';
 import { getPnLClass } from '../utils/formatters';
 
+// NEW IMPORTS: Needed to power the Template Builder inside the Adjustment View
+import { useOptionChain } from '../hooks/useOptionChain';
+import { buildTemplateLegs } from '../utils/templateBuilder';
+
 interface LocationState {
   originalLegs?: Leg[];
   symbol?: string;
@@ -34,12 +38,14 @@ export function AdjustmentView() {
     );
   }
 
+  // Fetch the chain so the Template Builder knows what strikes to use
+  const { chain } = useOptionChain(symbol);
+
   const [adjustedLegs, setAdjustedLegs] = useState<Leg[]>(() => originalLegs.map((leg) => ({ ...leg })));
   const [comparison, setComparison] = useState<AdjustmentSimulateResponse | null>(null);
   const [isComparing, setIsComparing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Ensure strategyType is valid
   const validStrategyType: StrategyType = (strategyType as StrategyType) || 'custom';
 
   const xAxisRange = useMemo((): [number, number] | undefined => {
@@ -72,6 +78,21 @@ export function AdjustmentView() {
   const removeLeg = (id: string) => setAdjustedLegs((prev) => prev.filter((leg) => leg.id !== id));
   const updateLeg = (id: string, updates: Partial<Leg>) =>
     setAdjustedLegs((prev) => prev.map((leg) => (leg.id === id ? { ...leg, ...updates } : leg)));
+
+  // NEW: Handle Template Loading specifically for the Adjustment view
+  const handleLoadTemplate = (strategy: StrategyType) => {
+    if (!chain || !chain.strikes) return;
+    const strikes = chain.strikes.map((s: any) => s.strike);
+    const newLegs = buildTemplateLegs(
+      strategy,
+      chain.spot,
+      strikes,
+      chain.lot_size || 50,
+      new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      1
+    ) as Leg[];
+    setAdjustedLegs(newLegs);
+  };
 
   const handleCompare = async () => {
     setIsComparing(true);
@@ -153,6 +174,7 @@ export function AdjustmentView() {
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-accent"></span>
               </span>
             </div>
+            
             <LegBuilder
               legs={adjustedLegs}
               strategyType={validStrategyType}
@@ -161,10 +183,13 @@ export function AdjustmentView() {
               onAddLeg={addLeg}
               onRemoveLeg={removeLeg}
               onUpdateLeg={updateLeg}
+              onSetLegs={setAdjustedLegs}       // <-- FIXED: Added missing prop
+              onLoadTemplate={handleLoadTemplate} // <-- FIXED: Added missing prop
               onAnalyze={handleCompare}
               onStrategyTypeChange={() => {}}
               onSymbolChange={() => {}}
             />
+            
             {comparison && (
               <div className="mt-2">
                 <RiskScore metrics={comparison.adjusted} isLoading={false} />
