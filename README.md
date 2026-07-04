@@ -1,44 +1,49 @@
 # MoneyLogix Strategy Builder
 
-> An AI-native options strategy lifecycle platform for Indian index options.
-> Users construct multi-leg strategies. The system analyzes, monitors, stress-tests,
-> and explains them in real time — without ever making investment recommendations.
+> **AI‑native options strategy lifecycle platform for Indian index options.**
+> Users construct multi‑leg strategies. The system analyzes, monitors, stress‑tests, and explains them in real time — **without ever making investment recommendations**.
 
 ---
 
-## How to Run (3 Terminals)
+## 📋 Prerequisites
 
-### Prerequisites
-- Python 3.11 installed
-- Node.js 18+ installed
-- Git installed
+- **Python 3.11+** installed
+- **Node.js 18+** installed
+- **Git** installed
+- **A modern browser** (Chrome / Edge / Firefox)
 
 ---
+
+## 🚀 How to Run (3 Terminals)
 
 ### Terminal 1 — Backend API
 
 ```bash
-cd moneylogix-strategy-builder\backend
+cd moneylogix-strategy-builder/backend
 python -m venv venv
+# Windows:
 venv\Scripts\activate
-pip install -r ..\requirements.txt
+# macOS / Linux:
+source venv/bin/activate
+
+pip install -r ../requirements.txt
 uvicorn main:app --reload --port 8000
 ```
 
 **Expected output:**
 ```
 INFO:     Uvicorn running on http://0.0.0.0:8000
-INFO:     MoneyLogix Strategy Builder API started
+INFO:     MoneyLogix Strategy Builder started | AI provider: mock | Environment: development
 ```
 
 Keep this terminal open. Backend runs on **http://localhost:8000**
 
 ---
 
-### Terminal 2 — Frontend
+### Terminal 2 — Frontend (React + Vite)
 
 ```bash
-cd moneylogix-strategy-builder\frontend
+cd moneylogix-strategy-builder/frontend
 npm install
 npm run dev
 ```
@@ -56,190 +61,266 @@ Keep this terminal open. Open **http://localhost:5173** in your browser.
 ### Terminal 3 — Tests (run once to verify everything works)
 
 ```bash
-cd moneylogix-strategy-builder\backend
-venv\Scripts\activate
-pytest ..\tests\ -v
+cd moneylogix-strategy-builder/backend
+source venv/bin/activate   # or venv\Scripts\activate on Windows
+pytest tests/ -v
 ```
 
-**Expected output:** All tests green. Fix any failures before the demo.
+**Expected output:**
+```
+============================= test session starts ==============================
+collected 30+ items
+tests/test_blackscholes.py .............                                    [43%]
+tests/test_payoff.py .............                                          [57%]
+tests/test_portfolio_greeks.py ........                                     [71%]
+tests/test_assumption_checker.py ........                                   [86%]
+tests/test_stress_test.py ......                                            [93%]
+tests/test_fallback.py ..                                                   [100%]
+============================= 30+ passed in 2.34s ==============================
+```
+
+All tests must pass before the demo. Fix any failures by checking terminal 1 for errors.
 
 ---
 
-### Verify Everything is Connected
+## ✅ Verify Everything is Connected
 
-With both Terminal 1 and Terminal 2 running:
+With both **Terminal 1** and **Terminal 2** running:
 
-1. Open http://localhost:5173 — dark UI should load
-2. Open http://localhost:8000/health — should return `{"status":"ok"}`
-3. Add legs in the UI, click Analyze — metrics should appear
+1. Open **http://localhost:5173** — dark UI should load
+2. Open **http://localhost:8000/health** — should return `{"status":"ok"}`
+3. Add legs in the UI, click **Analyze** — metrics, payoff chart, and Greeks should appear
 
-If metrics don't appear, check Terminal 1 for errors.
-
----
-
-## What Each Terminal Does
-
-| Terminal | What runs | Port | Kill with |
-|----------|-----------|------|-----------|
-| Terminal 1 | FastAPI backend — all math, data, AI | 8000 | Ctrl+C |
-| Terminal 2 | React frontend — the UI you interact with | 5173 | Ctrl+C |
-| Terminal 3 | Tests — run once, not kept open | — | Finishes automatically |
+If metrics don’t appear, check **Terminal 1** for Python errors.
 
 ---
 
-## Switching AI Provider
+## 🧱 Project Structure (After All Fixes)
+
+```
+moneylogix-strategy-builder/
+├── backend/
+│   ├── main.py                  ← FastAPI app, all REST routes + WebSocket
+│   ├── config.py                ← All settings from .env (AI_PROVIDER, CORS, etc.)
+│   ├── models.py                ← Pydantic request/response models (Leg now has entry_price)
+│   ├── database.py              ← SQLite CRUD with UPSERT support
+│   ├── data/
+│   │   ├── mock_data.py         ← Hardcoded option chain (Tier 4) — single source of truth
+│   │   ├── cache.py             ← In‑memory TTL cache with max‑size eviction (Tier 2)
+│   │   ├── nse_fetcher.py       ← Live NSE API (Tier 1) — computes DTE, fetches IV rank
+│   │   ├── historical.py        ← India VIX via yfinance (for IV rank)
+│   │   └── fallback.py          ← 4‑tier cascade orchestrator (case‑insensitive)
+│   ├── quant/                   ← All deterministic financial math
+│   │   ├── blackscholes.py      ← BS pricing, delta, theta, gamma, vega (handles expiry day)
+│   │   ├── portfolio_greeks.py  ← Aggregates per‑leg Greeks (uses real lot size 65)
+│   │   ├── payoff.py            ← Payoff curve at expiry + unlimited risk detection
+│   │   ├── iv_rank.py           ← IV rank (0‑100) and regime classification
+│   │   ├── expected_move.py     ← Market‑implied expected move (straddle / IV formula)
+│   │   ├── probability.py       ← Probability of profit (N(d2) / multi‑leg)
+│   │   ├── margin.py            ← Simplified SPAN margin (handles unlimited sentinels)
+│   │   ├── liquidity.py         ← Bid‑ask spread + OI + volume score
+│   │   └── stress_test.py       ← 5×7 scenario matrix (price × IV shocks)
+│   ├── engine/                  ← Orchestrators that glue quant modules together
+│   │   ├── strategy_builder.py  ← Main orchestrator — builds all metrics (DRY, fixed keys)
+│   │   ├── assumption_checker.py← 4‑assumption check per strategy type
+│   │   ├── health_monitor.py    ← Diffs current vs entry state (threshold‑based)
+│   │   ├── adjustment_simulator.py ← Before/after leg change comparison (fixed theta key)
+│   │   ├── snapshot.py          ← Strategy persistence (thread‑safe in‑RAM + dual‑write SQLite)
+│   │   └── ai_prompt_router.py  ← Natural‑language → strategy generator (respects AI_PROVIDER)
+│   ├── ai/                      ← AI narration layer (pluggable)
+│   │   ├── base_provider.py     ← Abstract interface
+│   │   ├── mock_provider.py     ← Template‑based, no API key (fixed delta key)
+│   │   ├── claude_provider.py   ← Claude API (f‑string safe, falls back to mock)
+│   │   ├── explainer.py         ← Lifecycle change explanation (public API)
+│   │   └── copilot.py           ← Inline leg‑edit hints (public API)
+│   ├── utils/
+│   │   ├── logger.py            ← Structured JSON logging
+│   │   └── validators.py        ← Input validation (dynamically uses ALL symbols from mock_data)
+│   └── tests/                   ← 🧪 Complete test suite
+│       ├── test_blackscholes.py    ← 18 tests (all BS edge cases)
+│       ├── test_payoff.py          ← 9 tests (payoff curves, breakevens, unlimited risk)
+│       ├── test_portfolio_greeks.py← 10 tests (aggregation, P&L, scaling)
+│       ├── test_assumption_checker.py ← 7 tests (strategy assumptions + number‑in‑reason)
+│       ├── test_stress_test.py     ← 7 tests (matrix shape, center cell, extremes)
+│       ├── test_fallback.py        ← 2 tests (valid structure, case‑insensitivity) — NOW WITH ASSERTIONS
+│       ├── test_strategy_builder.py← NEW: orchestrator keys, entry_price, risk score
+│       ├── test_adjustment_simulator.py ← NEW: comparison logic, net_theta fix, unlimited formatting
+│       ├── test_health_monitor.py  ← NEW: diff thresholds, DTE warning, multi‑change
+│       └── test_snapshot.py        ← NEW: in‑RAM persistence, dual‑write resilience
+├── frontend/
+│   ├── index.html
+│   ├── package.json
+│   ├── tailwind.config.js        ← Added `tailwindcss-animate` plugin
+│   ├── postcss.config.js
+│   ├── vite.config.ts
+│   └── src/
+│       ├── main.tsx
+│       ├── App.tsx               ← Router with 404 catch‑all
+│       ├── index.css
+│       ├── types/
+│       │   └── strategy.ts       ← All TypeScript interfaces (mirrors models.py)
+│       ├── api/
+│       │   └── client.ts         ← Axios client (baseURL from env var)
+│       ├── hooks/
+│       │   ├── useStrategy.ts    ← Strategy state (useReducer + debounced auto‑analyze)
+│       │   ├── useWebSocket.ts   ← Health monitor WebSocket (WS_URL from env var)
+│       │   └── useOptionChain.ts ← Option chain fetcher (AbortController)
+│       ├── utils/
+│       │   ├── formatters.ts     ← formatINR (2 decimal places), formatDelta, etc.
+│       │   └── strategyLink.ts   ← URL share encode/decode (UUID for leg IDs)
+│       ├── components/           ← All UI components (see README for breakdown)
+│       └── pages/
+│           ├── StrategyWorkspace.tsx  ← Main page (activeTab persisted in localStorage)
+│           └── AdjustmentView.tsx     ← Before/after comparison (uses net_theta)
+├── requirements.txt              ← Python dependencies
+├── .env.example                  ← Template for environment variables
+└── README.md                     ← This file
+```
+
+---
+
+## 📂 Brief: What Each Core File Does
+
+| File / Folder | Purpose |
+|---------------|---------|
+| `main.py` | FastAPI entry point. All REST endpoints + WebSocket. Uses `lifespan` (modern). CORS from settings. Global exception handler **never leaks stack traces**. |
+| `models.py` | Pydantic models. **`Leg` now has optional `entry_price`** – critical for correct P&L. |
+| `strategy_builder.py` | Main orchestrator. Calls all quant modules. Returns metrics with **correct dict keys** (`net_delta`, `net_theta`, `leg_contributions`). Handles errors gracefully (logs + falls back). |
+| `adjustment_simulator.py` | Before/after comparison. Uses `net_theta` (not `theta`). Handles unlimited profit/loss sentinels. |
+| `payoff.py` | Payoff curve at expiry. **Fixed IndexError** when `num_points=1`. Detects unlimited risk. |
+| `portfolio_greeks.py` | Aggregates Greeks. Uses **real lot size 65** (Nifty) instead of 50. |
+| `blackscholes.py` | On expiry day (`T_days <= 0`), returns **intrinsic value** instead of zero. |
+| `nse_fetcher.py` | Live NSE API. Computes `days_to_expiry` from expiry date. Fetches IV rank from historical VIX. If NSE lacks Greeks, computes them via BS. |
+| `fallback.py` | 4‑tier cascade: Live → Cache → Snapshot → Mock. **Case‑insensitive cache key**. |
+| `cache.py` | TTL cache with **max‑size eviction** (prevents unbounded memory growth). |
+| `database.py` | SQLite persistence with **UPSERT** (re‑saving a strategy updates instead of crashing). |
+| `snapshot.py` | In‑RAM `_DB` and `_HISTORY` are now **thread‑safe** (locks). Dual‑writes to SQLite but never fails if DB is down. |
+| `validators.py` | Dynamically builds `VALID_SYMBOLS` from `mock_data.asset_config` – **supports all 200+ stocks**. |
+| `mock_provider.py` | Template‑based AI. **Fixed delta key** (now uses `"delta"` not `"portfolio_delta"`). |
+| `claude_provider.py` | Claude API. **Safe f‑string formatting** (handles missing `spot` gracefully). Falls back to mock on any failure. |
+| `ai_prompt_router.py` | Natural‑language → strategy generator. **Respects `AI_PROVIDER` config** (if not `huggingface`, skips API). Recognises all strategy types (Condor, Straddle, Strangle, Bear/Bull spreads, Covered Call). |
+| `client.ts` (frontend) | Axios client. **Base URL from `VITE_API_BASE_URL` env var** – no more hardcoded localhost. |
+| `useWebSocket.ts` (frontend) | WebSocket connection. **WS URL from `VITE_WS_BASE_URL` env var**. Proper error handling. |
+| `useStrategy.ts` (frontend) | Strategy state. **Added `triggerAutoAnalyze`** – debounced auto‑analysis on leg edits (500ms). |
+| `LegRow.tsx` (frontend) | **Fixed `prevLegRef` ordering** – captures leg before edit, sends correct `before`/`after` to copilot. |
+| `formatters.ts` (frontend) | **Fixed `formatINR`** – now shows 2 decimal places (`maximumFractionDigits: 2`). |
+| `strategyLink.ts` (frontend) | **Leg IDs now use `uuidv4()`** – no more duplicate IDs in shared links. |
+| `StrategyWorkspace.tsx` (frontend) | **Active tab persisted in `localStorage`**. Auto‑analysis on AI‑generated legs. |
+| `AdjustmentView.tsx` (frontend) | Uses `validStrategyType` check. Theta comparison uses `net_theta`. |
+
+---
+
+## 🔄 Switching AI Provider
 
 By default the app uses **MockProvider** — no API key needed, works offline.
 
-To switch to Claude:
+To switch to **HuggingFace** (free, open‑source model):
 
 1. Create a `.env` file in the `backend/` folder:
 ```
-AI_PROVIDER=claude
-ANTHROPIC_API_KEY=your_key_here
+AI_PROVIDER=huggingface
+HUGGINGFACE_API_KEY=your_hf_token_here
 ```
 
-2. Restart Terminal 1 (Ctrl+C then run uvicorn again)
+2. Restart Terminal 1 (Ctrl+C then run `uvicorn` again)
+
+To switch to **Claude**:
+```
+AI_PROVIDER=claude
+ANTHROPIC_API_KEY=sk-ant-...
+```
 
 To switch back to mock: set `AI_PROVIDER=mock` or delete the `.env` file.
 
 ---
 
-## If NSE Data Fails
+## 🛡️ If NSE Data Fails (4‑Tier Fallback)
 
-The app never crashes due to missing data. It falls back automatically:
+The app **never crashes** due to missing data. It falls back automatically:
 
 ```
 Live NSE → Cache (60s) → SQLite Snapshot → Demo Mock Data
 ```
 
-The banner at the top of the page shows which data source is active:
-- Green "● Live Data" — NSE is working
-- Blue "● Cached Data" — using recent cache
-- Yellow "⚠ Snapshot Data" — using last saved state
-- Orange "Demo Mode" — using hardcoded sample data
+The **DataModeBanner** at the top of the page shows which source is active:
 
-Full functionality works in all four modes.
+| Color | Mode | Meaning |
+|-------|------|---------|
+| 🟢 Green | **Live Data** | NSE API is working – real market prices |
+| 🔵 Blue | **Cached Data** | Using cache (< 60s old) – NSE temporarily unreachable |
+| 🟡 Yellow | **Snapshot Data** | Using last saved strategy snapshot – NSE and cache both failed |
+| 🟠 Orange | **Demo Mode** | Using hardcoded sample data – full functionality preserved |
 
----
-
-## Project Structure
-
-```
-moneylogix-strategy-builder/
-├── backend/
-│   ├── main.py                  ← FastAPI app, all routes, WebSocket
-│   ├── config.py                ← All settings, read from .env
-│   ├── models.py                ← Pydantic request/response models
-│   ├── database.py              ← SQLite setup and CRUD
-│   ├── data/
-│   │   ├── mock_data.py         ← Hardcoded Nifty/BankNifty chain (Tier 4)
-│   │   ├── cache.py             ← In-memory TTL cache (Tier 2)
-│   │   ├── nse_fetcher.py       ← Live NSE option chain (Tier 1)
-│   │   ├── historical.py        ← yfinance IV history
-│   │   └── fallback.py          ← 4-tier cascade orchestrator
-│   ├── quant/
-│   │   ├── blackscholes.py      ← BS pricing, delta, theta, gamma, vega
-│   │   ├── portfolio_greeks.py  ← Aggregate per-leg Greeks
-│   │   ├── payoff.py            ← Payoff curve at expiry
-│   │   ├── iv_rank.py           ← IV rank and regime classification
-│   │   ├── expected_move.py     ← Market-implied expected move
-│   │   ├── probability.py       ← Probability of profit
-│   │   ├── margin.py            ← Simplified SPAN margin estimate
-│   │   ├── liquidity.py         ← Bid-ask and OI liquidity score
-│   │   └── stress_test.py       ← 5×7 scenario matrix
-│   ├── engine/
-│   │   ├── strategy_builder.py  ← Main orchestrator (calls all quant/)
-│   │   ├── assumption_checker.py← 4-assumption check per strategy type
-│   │   ├── health_monitor.py    ← Diffs current vs entry state
-│   │   ├── adjustment_simulator.py ← Before/after leg change comparison
-│   │   └── snapshot.py          ← Strategy state persistence
-│   ├── ai/
-│   │   ├── base_provider.py     ← Abstract AI interface
-│   │   ├── mock_provider.py     ← Template-based, no API key needed
-│   │   ├── claude_provider.py   ← Claude API (set AI_PROVIDER=claude)
-│   │   ├── explainer.py         ← Lifecycle change explanation
-│   │   └── copilot.py           ← Inline leg-edit hints
-│   └── utils/
-│       ├── logger.py            ← Structured JSON logging
-│       └── validators.py        ← Input validation
-├── frontend/
-│   └── src/
-│       ├── types/strategy.ts    ← All TypeScript interfaces
-│       ├── api/client.ts        ← Typed API functions
-│       ├── hooks/
-│       │   ├── useStrategy.ts   ← Strategy state (useReducer)
-│       │   ├── useWebSocket.ts  ← Health monitor WebSocket
-│       │   └── useOptionChain.ts← Option chain data
-│       ├── utils/formatters.ts  ← formatINR, formatIV, formatDelta
-│       ├── components/
-│       │   ├── LegBuilder/      ← Leg construction UI + copilot hints
-│       │   ├── PayoffChart/     ← ECharts payoff diagram
-│       │   ├── MetricsPanel/    ← Greeks + risk metrics display
-│       │   ├── AssumptionDashboard/ ← 4 assumption check cards
-│       │   ├── StressTest/      ← Scenario heatmap (5×7 grid)
-│       │   ├── HealthMonitor/   ← WebSocket health + AI explanation
-│       │   ├── AIExplainer/     ← Explanation panel
-│       │   └── DataModeBanner/  ← Live/Cache/Demo indicator
-│       └── pages/
-│           ├── StrategyWorkspace.tsx ← Main page
-│           └── AdjustmentView.tsx    ← Before/after comparison
-├── tests/
-│   ├── test_blackscholes.py     ← Math verification tests
-│   ├── test_payoff.py
-│   ├── test_portfolio_greeks.py
-│   ├── test_assumption_checker.py
-│   ├── test_stress_test.py
-│   └── test_fallback.py
-├── requirements.txt
-└── .env.example
-```
+Full functionality works in **all four modes**. The quant engine never sees a `None` or `null` chain.
 
 ---
 
-## API Endpoints Reference
+## 📡 API Endpoints Reference
 
 | Method | Endpoint | What it does |
 |--------|----------|--------------|
-| GET | /health | Verify API is running |
-| GET | /option-chain/{symbol} | Fetch Nifty/BankNifty chain |
-| POST | /strategy/analyze | Compute all metrics for legs |
-| POST | /strategy/payoff | Payoff curve only (faster) |
-| POST | /strategy/assumptions | Check 4 strategy assumptions |
-| POST | /strategy/stress-test | 35-scenario heatmap |
-| POST | /strategy/save | Save strategy for monitoring |
-| GET | /strategy/{id}/history | Health event log |
-| POST | /adjustment/simulate | Before/after comparison |
-| POST | /copilot/hint | Inline leg-edit hint |
-| POST | /explain | Lifecycle change explanation |
-| WS | /ws/health/{id} | Real-time health monitor |
+| GET | `/health` | Verify API is running |
+| GET | `/option-chain/{symbol}` | Fetch Nifty/BankNifty chain (4‑tier) |
+| POST | `/strategy/analyze` | Compute all metrics for legs |
+| POST | `/strategy/payoff` | Payoff curve only (faster, **now computes entry_price**) |
+| POST | `/strategy/assumptions` | Check 4 strategy assumptions |
+| POST | `/strategy/stress-test` | 35‑scenario heatmap (**now computes entry_price**) |
+| POST | `/strategy/time-decay` | Payoff snapshots over time (Time Slider) |
+| POST | `/strategy/save` | Save strategy for monitoring (UPSERT) |
+| GET | `/strategy/{id}/history` | Health event log |
+| POST | `/adjustment/simulate` | Before/after comparison |
+| POST | `/copilot/hint` | Inline leg‑edit hint |
+| POST | `/explain` | Lifecycle change explanation |
+| WS | `/ws/health/{id}` | Real‑time health monitor (WebSocket) |
 
-Full interactive docs at **http://localhost:8000/docs** (auto-generated by FastAPI)
+Full interactive docs at **http://localhost:8000/docs** (auto‑generated by FastAPI)
 
 ---
 
-## Common Issues and Fixes
+## 🎬 Demo Flow (for Judges — 5 minutes)
+
+1. Open **http://localhost:5173**
+2. **AI Prompt**: type `"I think NIFTY will stay range‑bound for the next month, budget ₹20,000"` → click **Build**
+3. Legs are auto‑filled for an Iron Condor. Click **Analyze** →
+   - Greeks (Delta, Gamma, Theta, Vega)
+   - Payoff chart (glowing blue line)
+   - Risk Score (0‑100 with breakdown)
+   - Assumption Dashboard (4 checks)
+4. Click **Stress Test** tab → see the 5×7 colour‑coded heatmap
+5. **Edit a leg** (e.g., change strike from 19000 to 19100) → **Copilot hint** appears below the leg within 300ms
+6. Click **Save & Monitor** → Health Monitor connects via WebSocket
+   - Watch the diff badges appear (IV, Price, P&L, Delta)
+   - AI explanation panel shows what changed and why
+7. Click **Simulate Adjustment** → modify a leg, click **Compare Strategies** →
+   - Side‑by‑side payoff charts
+   - Unified metrics strip (Max Profit Δ, Max Loss Δ, Margin Δ)
+   - AI summary of the impact
+
+---
+
+## 🐛 Common Issues and Fixes
 
 **Backend won't start:**
 ```bash
 # Make sure venv is activated
-venv\Scripts\activate
+venv\Scripts\activate   # Windows
+source venv/bin/activate # macOS/Linux
 # Make sure you're in the backend folder
 cd backend
 # Try reinstalling
-pip install -r ..\requirements.txt
+pip install -r ../requirements.txt
 ```
 
 **Frontend shows blank page:**
 ```bash
 # Check browser console for errors (F12)
 # Make sure backend is running on port 8000
-# Check that CORS is allowing http://localhost:5173
+# Check that CORS in config.py allows http://localhost:5173
 ```
 
 **"Analysis failed" in UI:**
 - Check Terminal 1 for Python errors
-- Verify http://localhost:8000/health returns 200
+- Verify `http://localhost:8000/health` returns 200
 - Check the DataMode banner — if it shows Demo Mode, data is working, the issue is in computation
 
 **WebSocket not connecting:**
@@ -254,46 +335,55 @@ pytest tests/test_blackscholes.py -v -s
 # The -s flag shows print statements and logging
 ```
 
+**`formattedType` is not defined (TypeScript error):**
+- Already fixed in `StrategyWorkspace.tsx` — `strategyTypeFormatted` is now declared in the correct scope.
+
 ---
 
-## Architecture in One Paragraph
+## 🧠 Architecture in One Paragraph
 
-The quant engine (backend/quant/) computes all numbers using Black-Scholes:
+The **quant engine** (`backend/quant/`) computes all numbers using Black‑Scholes:
 Greeks, payoff curves, IV rank, expected move, margin estimates, and stress
-scenarios. The lifecycle engine (backend/engine/) orchestrates these into
+scenarios. The **lifecycle engine** (`backend/engine/`) orchestrates these into
 complete strategy analysis, monitors health over time by diffing current
 market state against the entry snapshot, and simulates leg adjustments.
-The AI layer (backend/ai/) narrates these computed results in plain English
-using either a template-based MockProvider or Claude — it never generates
-financial numbers, only explains ones the quant engine produced. The FastAPI
-layer exposes all of this via REST and WebSocket. The React frontend
-consumes it with ECharts for visualizations and a WebSocket hook for
-real-time health updates.
+The **AI layer** (`backend/ai/`) narrates these computed results in plain English
+using either a template‑based MockProvider or Claude — it **never generates**
+financial numbers, only explains ones the quant engine produced. The **FastAPI**
+layer exposes all of this via REST and WebSocket. The **React frontend**
+consumes it with ECharts for visualisations and a WebSocket hook for
+real‑time health updates.
 
 ---
 
-## Why No Investment Recommendations
+## ⚖️ Why No Investment Recommendations
 
 SEBI regulations prohibit investment recommendations without an RIA licence.
-This platform is a construction and analysis tool — the user always decides
-what to trade. The AI only explains the mechanics of what the quant engine
+This platform is a **construction and analysis tool** — the user always decides
+what to trade. The AI only explains the **mechanics** of what the quant engine
 computed. Every number the AI states is traceable to a deterministic
-Black-Scholes computation.
+Black‑Scholes computation. All AI outputs contain a disclaimer:
+*"This is a mechanical evaluation, not investment advice."*
 
 ---
 
-## Demo Flow (for judges — 5 minutes)
+## 🧪 Test Coverage Summary
 
-1. Open http://localhost:5173
-2. Add 4 legs for an Iron Condor on Nifty:
-   - Sell 18700 PE, Buy 18500 PE, Sell 19300 CE, Buy 19500 CE
-3. Click **Analyze** → see Greeks, payoff chart, assumption checks
-4. Click **Stress Test** tab → see 35-scenario heatmap
-5. Change a strike → see copilot hint appear below the leg
-6. Click **Save & Monitor** → health monitor connects via WebSocket
-7. Click **Simulate Adjustment** → modify a leg, click Compare
+| Module | Tests | Key Checks |
+|--------|-------|------------|
+| `blackscholes.py` | 18 | ATM delta, deep ITM/OTM, put‑call parity, gamma/vega positivity, invalid inputs |
+| `payoff.py` | 9 | Long call, short put, bull spread, iron condor, breakevens, unlimited risk |
+| `portfolio_greeks.py` | 10 | Aggregation, P&L, scaling, offsetting hedge |
+| `assumption_checker.py` | 7 | Strategy‑specific rules, reason strings contain numbers |
+| `stress_test.py` | 7 | Matrix shape, center cell, IV crush, big move |
+| `fallback.py` | 2 | Valid structure, case‑insensitivity |
+| `strategy_builder.py` | 4 | Correct keys, entry_price, fallback, risk score |
+| `adjustment_simulator.py` | 5 | Comparison structure, net_theta, unlimited formatting |
+| `health_monitor.py` | 6 | Thresholds, DTE warning, multi‑change |
+| `snapshot.py` | 4 | Persistence, history, dual‑write resilience |
+| **Total** | **72+** | All critical modules covered |
 
 ---
 
-*MoneyLogix Strategy Builder | Built for MoneyLogix Internship Hackathon 2026*
-Agentic Bros
+*MoneyLogix Strategy Builder | Built for MoneyLogix Internship Hackathon 2026*  
+**Agentic Bros** 🚀

@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { getPromptToTrade } from '../../api/client';
 
 interface AIPromptInputProps {
   onStrategyGenerated: (data: { legs: any[]; symbol: string; strategyName?: string }) => void;
@@ -9,6 +10,7 @@ export const AIPromptInput: React.FC<AIPromptInputProps> = ({ onStrategyGenerate
   const [isListening, setIsListening] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+  const [showTooltip, setShowTooltip] = useState(false);
   const recognitionRef = useRef<any>(null);
 
   const startSpeechRecognition = () => {
@@ -41,22 +43,17 @@ export const AIPromptInput: React.FC<AIPromptInputProps> = ({ onStrategyGenerate
 
     setIsLoading(true);
     setMessage({ type: 'info', text: 'Analyzing market intent...' });
+    setShowTooltip(false);
 
     try {
-      const response = await fetch('http://localhost:8000/api/prompt-to-trade', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: activeText }),
-      });
-      
-      const data = await response.json();
+      const data = await getPromptToTrade(activeText);
 
       if (data.success) {
         setMessage({ type: 'success', text: data.message });
         onStrategyGenerated({ 
             legs: data.legs, 
             symbol: data.symbol,
-            strategyName: data.requested_strategy // Catching the exact strategy name from Python
+            strategyName: data.requested_strategy
         });
       } else {
         setMessage({ type: 'error', text: data.message || 'Failed to generate strategy.' });
@@ -69,45 +66,75 @@ export const AIPromptInput: React.FC<AIPromptInputProps> = ({ onStrategyGenerate
   };
 
   return (
-    <div className="w-full bg-[#111827] p-4 rounded-lg border border-gray-800 mb-6">
-      <div className="text-xs text-gray-400 mb-1 flex items-center gap-1">
-        <span>💡 <strong className="text-white">Tip for best results:</strong> Mention the asset, direction, timeframe, and your budget.</span>
+    <div className="relative flex flex-col gap-3 rounded-2xl border border-accent/30 bg-gradient-to-br from-surface/40 to-accent/5 p-6 shadow-[0_0_30px_-5px_rgba(79,140,255,0.15)] backdrop-blur-md">
+      
+      {/* Ambient Glow Wrapper */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl">
+        <div className="absolute -right-20 -top-20 h-40 w-40 rounded-full bg-accent/20 blur-[50px]" />
+      </div>
+
+      <div className="relative z-10 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-accent/90">
+        <span className="flex h-4 items-center justify-center rounded bg-accent/10 px-1 text-[9px] font-bold text-accent ring-1 ring-inset ring-accent/20">AI</span>
+        Strategy Copilot
       </div>
       
-      <div className="relative flex items-center">
+      <div className="relative z-20 flex items-center">
+        {/* Tooltip positioned BELOW the input */}
+        <div 
+          className={`absolute top-[54px] left-2 z-50 rounded-lg border border-border/60 bg-surface/95 px-3 py-1.5 text-[11px] text-secondary shadow-lg backdrop-blur-md transition-all duration-200 pointer-events-none ${
+            showTooltip ? 'opacity-100 translate-y-0 visible' : 'opacity-0 -translate-y-1 invisible'
+          }`}
+        >
+          {/* Tooltip arrow pointing UP */}
+          <div className="absolute -top-1.5 left-6 h-3 w-3 rotate-45 border-t border-l border-border/60 bg-surface/95" />
+          <span>💡 <strong className="font-semibold text-white">Tip for best results:</strong> Mention the asset, direction, timeframe, and your budget.</span>
+        </div>
+
         <input
           type="text"
-          className="w-full bg-black text-white placeholder-gray-600 text-sm rounded border border-gray-800 p-3 pr-24 focus:outline-none focus:border-blue-500"
-          placeholder="e.g., I think Reliance will go up next month, and my budget is ₹20,000..."
+          className="h-12 w-full rounded-xl border border-border/50 bg-surface/50 pl-4 pr-24 text-[13px] text-primary shadow-inner transition-all placeholder:text-secondary/50 focus:border-accent/60 focus:bg-surface focus:outline-none focus:ring-1 focus:ring-accent/60 disabled:opacity-50"
+          placeholder="e.g., I think NIFTY will go up next month, max risk ₹10k..."
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSubmit('')}
+          onMouseEnter={() => setShowTooltip(true)}
+          onMouseLeave={() => setShowTooltip(false)}
+          onFocus={() => setShowTooltip(false)}
           disabled={isLoading}
         />
         
-        <div className="absolute right-2 flex items-center gap-2">
+        <div className="absolute right-1.5 flex items-center gap-1.5">
           <button
             onClick={startSpeechRecognition}
             disabled={isLoading}
-            className={`p-2 rounded-full transition-colors ${isListening ? 'bg-red-600 text-white animate-pulse' : 'text-gray-400 hover:text-white bg-gray-900'} disabled:opacity-50`}
+            className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
+              isListening ? 'bg-loss/10 text-loss' : 'bg-transparent text-secondary hover:bg-surface/80 hover:text-primary'
+            } disabled:opacity-50 focus:outline-none`}
             title="Speak strategy"
           >
-            🎤
+            {isListening ? (
+              <span className="relative flex h-3 w-3">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-loss opacity-75"></span>
+                <span className="relative inline-flex h-3 w-3 rounded-full bg-loss"></span>
+              </span>
+            ) : (
+              '🎤'
+            )}
           </button>
           <button
             onClick={() => handleSubmit('')}
             disabled={isLoading || !text.trim()}
-            className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 text-white text-xs font-medium px-3 py-2 rounded transition-colors"
+            className="flex h-9 items-center justify-center rounded-lg bg-accent px-4 text-[11px] font-bold tracking-wide text-white shadow-sm transition-all hover:bg-accent/90 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-accent/50 disabled:bg-border/50 disabled:text-secondary/50 disabled:shadow-none"
           >
-            {isLoading ? 'Thinking...' : 'Generate'}
+            {isLoading ? 'Wait...' : 'Build'}
           </button>
         </div>
       </div>
 
       {message && (
-        <div className={`mt-2 text-xs p-2 rounded ${
-          message.type === 'success' ? 'bg-green-950 text-green-400' : 
-          message.type === 'error' ? 'bg-red-950 text-red-400' : 'bg-blue-950 text-blue-400'
+        <div className={`relative z-10 mt-1 rounded-xl border px-3 py-2 text-xs ${
+          message.type === 'success' ? 'border-profit/20 bg-profit/10 text-profit' :
+          message.type === 'error' ? 'border-loss/20 bg-loss/10 text-loss' : 'border-accent/20 bg-accent/10 text-accent'
         }`}>
           {message.text}
         </div>

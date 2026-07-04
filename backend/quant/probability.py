@@ -126,25 +126,36 @@ def for_spread(
     """
     Compute PoP for a defined-risk spread strategy.
 
-    For vertical spreads (bull put spread, bear call spread, etc.):
-    The strategy earns maximum profit when the SHORT leg expires worthless.
-    Therefore, PoP ≈ PoP of the short leg = P(short leg expires OTM).
+    CREDIT spreads (bull put spread, bear call spread):
+    The strategy earns maximum profit when the SHORT leg expires worthless
+    (spot never reaches the short strike). Therefore:
+        PoP ≈ P(short leg expires OTM) = 1 - P(short leg ITM) = 1 - raw_pop
 
-    This is a simplification — the true PoP would require integrating the
-    joint payoff distribution across the spread width. But using the short
-    leg's PoP is the standard industry approximation (Tastytrade, Sensibull).
+    DEBIT spreads (bull call spread, bear put spread):
+    These are the mirror image — you WANT the underlying to move through
+    the short strike (that's what drives the spread toward its max profit).
+    Approximating "profit" with the short leg finishing ITM gives:
+        PoP ≈ P(short leg expires ITM) = raw_pop
+    Using "1 - raw_pop" here (as if it were a credit spread) would invert
+    the direction and report roughly (1 - true PoP) instead.
+
+    This is a simplification either way — the true PoP would require
+    integrating the joint payoff distribution across the spread width using
+    the breakeven price rather than the short strike. But using the short
+    leg's (in the correct direction) PoP is the standard industry
+    approximation (Tastytrade, Sensibull).
 
     Parameters
     ----------
     short_leg_greeks : dict  — greeks dict for the short leg (from blackscholes)
     strategy_type    : str   — one of:
-                               "bull_put_spread"   → short put PoP
-                               "bear_call_spread"  → short call PoP
-                               "bull_call_spread"  → short call PoP (long spread)
-                               "bear_put_spread"   → short put PoP (long spread)
+                               "bull_put_spread"   → credit spread: 1 - short put PoP
+                               "bear_call_spread"  → credit spread: 1 - short call PoP
+                               "bull_call_spread"  → debit spread:  short call PoP directly
+                               "bear_put_spread"   → debit spread:  short put PoP directly
                                "iron_condor"       → handled separately (use for_iron_condor)
                                "short_strangle"    → use for_iron_condor
-                               "other"             → returns short leg OTM prob
+                               "other"             → treated as credit spread (short leg OTM prob)
 
     Returns
     -------
@@ -157,9 +168,18 @@ def for_spread(
     raw_pop = float(short_leg_greeks.get("pop", 0.0))
     stype = strategy_type.strip().lower()
 
-    # For all spread types: PoP = P(short leg expires worthless) = 1 - P(ITM)
-    # The short leg's raw_pop = P(expiring ITM), so PoP = 1 - raw_pop
-    pop = 1.0 - raw_pop
+    # Credit spreads: profit when short leg expires worthless (OTM).
+    # Debit spreads: profit when the underlying moves through the short
+    # strike, i.e. approximated by the short leg expiring ITM.
+    DEBIT_SPREADS = {"bull_call_spread", "bear_put_spread"}
+
+    if stype in DEBIT_SPREADS:
+        # raw_pop already = P(short leg ITM), which is the right direction here.
+        pop = raw_pop
+    else:
+        # Credit spreads (bull_put_spread, bear_call_spread, "other", etc.)
+        # PoP = P(short leg expires worthless) = 1 - P(ITM)
+        pop = 1.0 - raw_pop
 
     # Special message for iron condor — redirect to dedicated function
     if stype == "iron_condor":

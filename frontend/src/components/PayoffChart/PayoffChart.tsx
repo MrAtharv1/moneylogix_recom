@@ -13,36 +13,34 @@ interface Props {
   maxProfit: number;
   maxLoss: number;
   height?: number;
-  xAxisRange?: [number, number]; // explicit domain override, used for side-by-side comparisons
+  xAxisRange?: [number, number]; 
 }
 
 export function PayoffChart({ curve, breakevens, height = 300, xAxisRange }: Props) {
   if (!curve || curve.length === 0) {
     return (
-      <div className="flex items-center justify-center h-[300px] text-secondary text-sm">
-        Run analysis to see payoff chart
+      <div className="flex h-[300px] items-center justify-center rounded-2xl border border-dashed border-border/60 bg-surface/10 text-sm text-secondary/60">
+        Run analysis to view payoff chart
       </div>
     );
   }
 
-  // 1. Find the boundaries of the chart
   const minPrice = Math.min(...curve.map(p => p.price));
   const maxPrice = Math.max(...curve.map(p => p.price));
-
-  // 2. Only draw breakevens that actually fit on the screen
   const validBreakevens = breakevens.filter(be => be >= minPrice && be <= maxPrice);
 
   const breakevenLines = validBreakevens.map((be) => ({
     xAxis: be,
     label: {
       formatter: () => `BE ${formatPrice(be)}`,
-      color: '#94a3b8',
+      color: '#8b949e',
       fontSize: 10,
+      fontFamily: 'ui-sans-serif, system-ui, sans-serif',
+      padding: [0, 4],
     },
-    lineStyle: { color: '#94a3b8', type: 'dashed' as const, width: 1 },
+    lineStyle: { color: '#8b949e', type: 'dashed' as const, width: 1, opacity: 0.5 },
   }));
 
-  // Replace the 'const option: any = {' block entirely with this:
   const option: any = {
     backgroundColor: 'transparent',
     grid: { left: 60, right: 20, top: 20, bottom: 40 },
@@ -52,53 +50,75 @@ export function PayoffChart({ curve, breakevens, height = 300, xAxisRange }: Pro
       min: xAxisRange ? xAxisRange[0] : undefined,
       max: xAxisRange ? xAxisRange[1] : undefined,
       axisLabel: {
-        color: '#94a3b8',
+        color: '#8b949e',
+        fontFamily: 'ui-sans-serif, system-ui, sans-serif',
         formatter: (val: number) => formatPrice(val),
       },
-      axisLine: { lineStyle: { color: '#2d3148' } },
-      splitLine: { lineStyle: { color: '#2d3148', type: 'dashed' } },
+      axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } },
+      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)', type: 'solid' } },
     },
 
     yAxis: {
       type: 'value',
       axisLabel: {
-        color: '#94a3b8',
+        color: '#8b949e',
+        fontFamily: 'ui-sans-serif, system-ui, sans-serif',
         formatter: (val: number) => formatINR(val),
       },
-      axisLine: { lineStyle: { color: '#2d3148' } },
-      splitLine: { lineStyle: { color: '#2d3148', type: 'dashed' } },
+      axisLine: { show: false },
+      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)', type: 'solid' } },
     },
 
     series: [
       {
         type: 'line',
         data: curve.map((p) => [p.price, p.pnl]),
-        smooth: true, // Smooth lines render much safer in ECharts
-        lineStyle: { width: 3, color: '#3b82f6' }, // Solid Accent Blue
-        areaStyle: { color: '#3b82f6', opacity: 0.1 },
+        smooth: true,
+        lineStyle: { 
+          width: 2, 
+          color: '#4f8cff',
+          shadowBlur: 12, // The Magic Glow Effect
+          shadowColor: 'rgba(79, 140, 255, 0.4)' // The Magic Glow Effect
+        },
+        areaStyle: {
+          color: {
+            type: 'linear',
+            x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [
+              { offset: 0, color: 'rgba(79, 140, 255, 0.15)' },
+              { offset: 1, color: 'rgba(79, 140, 255, 0.01)' }
+            ]
+          }
+        },
         symbol: 'none',
         markLine: {
           symbol: 'none',
-          data: [{ yAxis: 0, lineStyle: { color: '#94a3b8', type: 'solid', width: 1 } }, ...breakevenLines],
+          data: [{ yAxis: 0, lineStyle: { color: 'rgba(255,255,255,0.2)', type: 'solid', width: 1 } }, ...breakevenLines],
         },
       },
     ],
 
     tooltip: {
       trigger: 'axis',
-      backgroundColor: '#1a1d27',
-      borderColor: '#2d3148',
-      textStyle: { color: '#e2e8f0' },
+      backgroundColor: 'rgba(17, 24, 39, 0.85)',
+      borderColor: 'rgba(255,255,255,0.1)',
+      borderWidth: 1,
+      padding: [8, 12],
+      textStyle: { color: '#e5e7eb', fontSize: 12, fontFamily: 'ui-sans-serif, system-ui, sans-serif' },
+      extraCssText: 'backdrop-filter: blur(8px); border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);',
       formatter: (params: any) => {
         const point = Array.isArray(params) ? params[0] : params;
         const [price, pnl] = point.value;
-        const pnlColor = pnl >= 0 ? '#22c55e' : '#ef4444';
-        return `Price: ${formatPrice(price)}<br/>P&amp;L: <span style="color:${pnlColor};font-weight:bold">${formatINR(pnl)}</span>`;
+        const pnlColor = pnl >= 0 ? '#4ade80' : '#f87171'; 
+        return `
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <span style="color:#9ca3af;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Price: ${formatPrice(price)}</span>
+            <span style="font-weight:600;font-variant-numeric:tabular-nums;color:${pnlColor}">P&amp;L: ${formatINR(pnl)}</span>
+          </div>
+        `;
       },
     },
   };
 
-  // Add notMerge={true} to the return statement to prevent React/ECharts ghosting bugs
   return <ReactECharts option={option} style={{ height }} notMerge={true} />;
 }
-

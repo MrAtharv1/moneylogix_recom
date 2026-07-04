@@ -1,6 +1,6 @@
 /**
  * AssumptionDashboard — 2×2 grid of AssumptionCards with score below.
- * Shows skeleton cards while loading.
+ * Refined premium layout.
  */
 import type { AssumptionResult } from '../../types/strategy';
 import { AssumptionCard } from './AssumptionCard';
@@ -12,9 +12,9 @@ interface Props {
 
 function SkeletonCard() {
   return (
-    <div className="border border-border rounded-card p-3 bg-surface">
-      <div className="skeleton h-4 w-2/3 mb-2" />
-      <div className="skeleton h-3 w-full" />
+    <div className="rounded-xl border border-border/40 bg-surface/20 p-4 shadow-sm">
+      <div className="mb-3 h-4 w-2/3 animate-pulse rounded bg-border/50" />
+      <div className="h-3 w-full animate-pulse rounded bg-border/30" />
     </div>
   );
 }
@@ -22,7 +22,7 @@ function SkeletonCard() {
 export function AssumptionDashboard({ result, isLoading }: Props) {
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {Array.from({ length: 4 }).map((_, i) => (
           <SkeletonCard key={i} />
         ))}
@@ -31,7 +31,11 @@ export function AssumptionDashboard({ result, isLoading }: Props) {
   }
 
   if (!result) {
-    return <div className="text-secondary text-sm p-4">Run analysis to check strategy assumptions</div>;
+    return (
+      <div className="flex h-32 items-center justify-center rounded-2xl border border-dashed border-border/60 bg-surface/10 text-sm text-secondary/60">
+        Run analysis to check strategy assumptions
+      </div>
+    );
   }
 
   const scoreText =
@@ -40,13 +44,15 @@ export function AssumptionDashboard({ result, isLoading }: Props) {
       : 'N/A for custom strategies';
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="grid grid-cols-2 gap-3">
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {result.checks.map((check, i) => (
           <AssumptionCard key={`${check.name}-${i}`} check={check} />
         ))}
       </div>
-      <div className="text-secondary text-sm">{result.score_display || scoreText}</div>
+      <div className="px-1 text-[11px] font-medium uppercase tracking-wider text-secondary/60">
+        {result.score_display || scoreText}
+      </div>
     </div>
   );
 }

@@ -1,7 +1,3 @@
-/**
- * useOptionChain.ts — Fetches the option chain for a given symbol.
- * Used by leg builder strike/expiry pickers to source live strikes.
- */
 import { useState, useEffect, useCallback } from 'react';
 import { getOptionChain } from '../api/client';
 
@@ -18,14 +14,36 @@ export function useOptionChain(symbol: string) {
     if (result) {
       setChain(result);
     } else {
-      setError('Failed to load option chain. Check if backend is running.');
+      setError('Failed to load option chain.');
     }
     setIsLoading(false);
   }, [symbol]);
 
   useEffect(() => {
-    refetch();
-  }, [refetch]);
+    const controller = new AbortController();
+    let mounted = true;
+    const fetchData = async () => {
+      if (!symbol) return;
+      setIsLoading(true);
+      setError(null);
+      try {
+        const result = await getOptionChain(symbol);
+        if (mounted && !controller.signal.aborted) {
+          if (result) setChain(result);
+          else setError('Failed to load option chain.');
+        }
+      } catch (e) {
+        if (mounted && !controller.signal.aborted) setError('Network error.');
+      } finally {
+        if (mounted && !controller.signal.aborted) setIsLoading(false);
+      }
+    };
+    fetchData();
+    return () => {
+      mounted = false;
+      controller.abort();
+    };
+  }, [symbol]);
 
   return { chain, isLoading, error, refetch };
 }

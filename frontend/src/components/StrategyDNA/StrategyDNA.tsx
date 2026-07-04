@@ -20,100 +20,94 @@ export function StrategyDNA({ strategyType }: Props) {
   if (!dna || strategyType === 'custom') return null;
 
   return (
-    <div className="rounded-xl border border-[#2d3148] bg-[#1a1d27] p-5 space-y-4">
+    <div className="flex flex-col gap-5 rounded-2xl border border-border/40 bg-surface/20 p-5 shadow-sm backdrop-blur-md">
       {/* Header */}
-      <div>
-        <h3 className="text-sm font-semibold text-[#94a3b8] uppercase tracking-wider mb-1">
+      <div className="flex flex-col gap-1.5">
+        <h3 className="text-[11px] font-semibold uppercase tracking-wider text-secondary/70">
           Strategy DNA
         </h3>
-        <p className="text-[#e2e8f0] text-base font-medium">{dna.goal}</p>
+        <p className="text-[13px] font-medium leading-relaxed text-primary/90">{dna.goal}</p>
       </div>
 
       {/* 2x2 grid of key attributes */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-2.5">
         <DNACard
           icon="📈"
           label="Best Market"
           value={dna.best_market}
-          valueColor="#22c55e"
+          valueClass="text-profit"
         />
         <DNACard
           icon="📉"
           label="Worst Market"
           value={dna.worst_market}
-          valueColor="#ef4444"
+          valueClass="text-loss"
         />
         <DNACard
           icon="⏱"
           label="Time Sensitivity"
           value={dna.time_sensitivity}
-          valueColor="#f59e0b"
+          valueClass="text-warning"
         />
         <DNACard
           icon="〰️"
-          label="Volatility Sensitivity"
+          label="Vol Sensitivity"
           value={dna.volatility_sensitivity}
-          valueColor="#3b82f6"
+          valueClass="text-accent"
         />
       </div>
 
       {/* Key Risks */}
-      <div>
-        <p className="text-xs text-[#94a3b8] uppercase tracking-wider mb-2">Key Risks</p>
-        <div className="flex flex-wrap gap-2">
-          {dna.key_risks.map((risk, i) => (
-            <span
-              key={i}
-              className="text-xs px-2 py-1 rounded-md border"
-              style={{
-                color: '#ef4444',
-                borderColor: 'rgba(239,68,68,0.3)',
-                background: 'rgba(239,68,68,0.05)'
-              }}
-            >
-              ⚠ {risk}
-            </span>
-          ))}
+      {dna.key_risks.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <h4 className="text-[10px] font-semibold uppercase tracking-wider text-secondary/60">Key Risks</h4>
+          <div className="flex flex-wrap gap-1.5">
+            {dna.key_risks.map((risk, i) => (
+              <span
+                key={i}
+                className="inline-flex items-center gap-1 rounded-lg border border-loss/20 bg-loss/5 px-2 py-1 text-[11px] font-medium text-loss/90"
+              >
+                <span className="text-[10px]">⚠</span> {risk}
+              </span>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Ideal Entry Conditions */}
-      <div>
-        <p className="text-xs text-[#94a3b8] uppercase tracking-wider mb-2">
-          Ideal Entry Conditions
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {dna.ideal_entry_conditions.map((cond, i) => (
-            <span
-              key={i}
-              className="text-xs px-2 py-1 rounded-md border"
-              style={{
-                color: '#22c55e',
-                borderColor: 'rgba(34,197,94,0.3)',
-                background: 'rgba(34,197,94,0.05)'
-              }}
-            >
-              ✓ {cond}
-            </span>
-          ))}
+      {dna.ideal_entry_conditions.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <h4 className="text-[10px] font-semibold uppercase tracking-wider text-secondary/60">
+            Ideal Entry
+          </h4>
+          <div className="flex flex-wrap gap-1.5">
+            {dna.ideal_entry_conditions.map((cond, i) => (
+              <span
+                key={i}
+                className="inline-flex items-center gap-1 rounded-lg border border-profit/20 bg-profit/5 px-2 py-1 text-[11px] font-medium text-profit/90"
+              >
+                <span className="text-[10px]">✓</span> {cond}
+              </span>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
 
 function DNACard({
-  icon, label, value, valueColor
+  icon, label, value, valueClass
 }: {
-  icon: string; label: string; value: string; valueColor: string;
+  icon: string; label: string; value: string; valueClass: string;
 }) {
   return (
-    <div className="rounded-lg bg-[#0f1117] border border-[#2d3148] p-3">
-      <div className="flex items-center gap-1.5 mb-1">
-        <span className="text-sm">{icon}</span>
-        <span className="text-xs text-[#94a3b8]">{label}</span>
+    <div className="flex flex-col gap-1 rounded-xl border border-border/30 bg-surface/30 p-3 transition-colors hover:bg-surface/50">
+      <div className="flex items-center gap-1.5">
+        <span className="text-xs opacity-80">{icon}</span>
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-secondary/70">{label}</span>
       </div>
-      <p className="text-xs font-medium" style={{ color: valueColor }}>
+      <p className={`text-xs font-medium tracking-tight ${valueClass}`}>
         {value}
       </p>
     </div>

@@ -1,59 +1,53 @@
-"""
-cache.py — In-memory TTL cache for option chain data.
-Uses threading.Lock for thread safety.
-"""
-import threading
+"""cache.py — In-memory TTL cache with max size."""
+import asyncio
 import time
 from datetime import datetime
 
 class TTLCache:
-    """Thread-safe in-memory cache with time-to-live expiry."""
-    
-    def __init__(self, ttl_seconds: int = 60):
+    def __init__(self, ttl_seconds: int = 60, max_entries: int = 100):
         self.ttl_seconds = ttl_seconds
+        self.max_entries = max_entries
         self._cache = {}
-        self._lock = threading.Lock()
-    
-    def get(self, key: str) -> dict | None:
-        """Returns None if key missing or expired."""
-        with self._lock:
+        self._order = []
+        self._lock = asyncio.Lock()
+
+    async def get(self, key: str) -> dict | None:
+        async with self._lock:
             if key not in self._cache:
                 return None
-            
             entry = self._cache[key]
             if time.time() - entry['time'] > self.ttl_seconds:
                 del self._cache[key]
+                self._order.remove(key)
                 return None
-                
             return entry['value']
-    
-    def set(self, key: str, value: dict) -> None:
-        """Stores value with current timestamp."""
-        with self._lock:
-            self._cache[key] = {
-                'value': value,
-                'time': time.time(),
-                'timestamp': datetime.utcnow().isoformat()
-            }
-    
-    def invalidate(self, key: str) -> None:
-        """Removes key if present."""
-        with self._lock:
-            self._cache.pop(key, None)
-    
-    def get_age_seconds(self, key: str) -> float | None:
-        """Returns seconds since cached. None if not in cache."""
-        with self._lock:
+
+    async def set(self, key: str, value: dict) -> None:
+        async with self._lock:
+            if key in self._cache:
+                self._order.remove(key)
+            elif len(self._cache) >= self.max_entries:
+                oldest = self._order.pop(0)
+                del self._cache[oldest]
+            self._cache[key] = {'value': value, 'time': time.time()}
+            self._order.append(key)
+
+    async def invalidate(self, key: str) -> None:
+        async with self._lock:
+            if key in self._cache:
+                del self._cache[key]
+                self._order.remove(key)
+
+    async def get_age_seconds(self, key: str) -> float | None:
+        async with self._lock:
             if key not in self._cache:
                 return None
             return time.time() - self._cache[key]['time']
-    
-    def get_timestamp(self, key: str) -> str | None:
-        """Returns ISO timestamp of when item was cached. None if not in cache."""
-        with self._lock:
+
+    async def get_timestamp(self, key: str) -> str | None:
+        async with self._lock:
             if key not in self._cache:
                 return None
-            return self._cache[key]['timestamp']
+            return datetime.utcnow().isoformat()
 
-# Module-level singleton
-option_chain_cache = TTLCache(ttl_seconds=60)
+option_chain_cache = TTLCache(ttl_seconds=60, max_entries=100)

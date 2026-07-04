@@ -1,14 +1,10 @@
-"""
-mock_data.py — Hardcoded realistic option chain data for demo/fallback.
-
-This data is used when all other data sources fail. It represents a
-realistic Nifty/BankNifty option chain snapshot. Values are internally consistent.
-"""
+"""mock_data.py — Hardcoded realistic option chain data for demo/fallback."""
 import math
+from datetime import datetime, timedelta
 
-
+# ─── YOUR FULL ASSET CONFIG (keep as is) ─────────────────────────────────────
 asset_config = {
-                "LTFIN": {'spot': 315.4, 'lot': 2250, 'step': 5.0},
+    "LTFIN": {'spot': 315.4, 'lot': 2250, 'step': 5.0},
     "MCDOWELL": {'spot': 1375.2, 'lot': 400, 'step': 10.0},
     "MCDOWELLS": {'spot': 1375.2, 'lot': 400, 'step': 10.0},
     "UNITEDSPIRITS": {'spot': 1375.2, 'lot': 400, 'step': 10.0},
@@ -241,42 +237,30 @@ asset_config = {
     "ZYDUSLIFE": {'spot': 1111.6, 'lot': 900, 'step': 10.0},
 }
 
+# ─── FUNCTIONS ────────────────────────────────────────────────────────────────
 
 def _generate_mock_strikes(spot: float, step: int, num_strikes: int, base_iv: float) -> list:
     strikes = []
-    half_strikes = num_strikes // 2
-    start_strike = (int(spot) // step) * step - (half_strikes * step)
-    
+    half = num_strikes // 2
+    start = (int(spot) // step) * step - (half * step)
     for i in range(num_strikes):
-        strike = start_strike + (i * step)
-        distance = strike - spot
-        
-        # IV Smile: Lowest at ATM, increases further away
-        strike_iv = base_iv + (abs(distance) / spot) * 0.8
-        
-        # Mock pricing logic to ensure monotonic changes and ATM straddle target
-        # ATM straddle target ~ 1.8% of spot (approx 350 for 19000)
-        atm_price = spot * 0.0092 
-        
-        # Call price decreases as strike increases
+        strike = start + (i * step)
+        dist = strike - spot
+        strike_iv = base_iv + (abs(dist) / spot) * 0.8
+        atm_price = spot * 0.0092
+
         intrinsic_call = max(0.0, spot - strike)
-        time_value_call = atm_price * math.exp(-abs(distance) / (step * 3))
-        call_ltp = round(intrinsic_call + time_value_call, 2)
-        
-        # Put price increases as strike increases
+        tv_call = atm_price * math.exp(-abs(dist) / (step * 3))
+        call_ltp = round(intrinsic_call + tv_call, 2)
+
         intrinsic_put = max(0.0, strike - spot)
-        time_value_put = atm_price * math.exp(-abs(distance) / (step * 3))
-        put_ltp = round(intrinsic_put + time_value_put, 2)
+        tv_put = atm_price * math.exp(-abs(dist) / (step * 3))
+        put_ltp = round(intrinsic_put + tv_put, 2)
 
-        # Spread logic
-        spread_multiplier = 1 + (abs(distance) / (step * 10))
-        
-        # Delta logic
-        call_delta = max(0.01, min(0.99, 0.5 - (distance / (step * 10))))
+        spread_mult = 1 + (abs(dist) / (step * 10))
+        call_delta = max(0.01, min(0.99, 0.5 - (dist / (step * 10))))
         put_delta = call_delta - 1.0
-
-        # OI and Volume peak at ATM and major round numbers
-        oi_multiplier = max(0.1, 1.0 - (abs(distance) / (step * 5)))
+        oi_mult = max(0.1, 1.0 - (abs(dist) / (step * 5)))
         base_oi = 150000 if i % 5 == 0 else 50000
 
         strikes.append({
@@ -284,9 +268,9 @@ def _generate_mock_strikes(spot: float, step: int, num_strikes: int, base_iv: fl
             "call": {
                 "ltp": call_ltp,
                 "bid": round(call_ltp * 0.98, 2),
-                "ask": round(call_ltp * 1.02 + (1.5 * spread_multiplier), 2),
-                "oi": int(base_oi * oi_multiplier),
-                "volume": int(base_oi * oi_multiplier * 1.5),
+                "ask": round(call_ltp * 1.02 + (1.5 * spread_mult), 2),
+                "oi": int(base_oi * oi_mult),
+                "volume": int(base_oi * oi_mult * 1.5),
                 "iv": round(strike_iv, 4),
                 "delta": round(call_delta, 2),
                 "theta": -15.5,
@@ -296,9 +280,9 @@ def _generate_mock_strikes(spot: float, step: int, num_strikes: int, base_iv: fl
             "put": {
                 "ltp": put_ltp,
                 "bid": round(put_ltp * 0.98, 2),
-                "ask": round(put_ltp * 1.02 + (1.5 * spread_multiplier), 2),
-                "oi": int(base_oi * oi_multiplier * 0.9),
-                "volume": int(base_oi * oi_multiplier * 1.4),
+                "ask": round(put_ltp * 1.02 + (1.5 * spread_mult), 2),
+                "oi": int(base_oi * oi_mult * 0.9),
+                "volume": int(base_oi * oi_mult * 1.4),
                 "iv": round(strike_iv, 4),
                 "delta": round(put_delta, 2),
                 "theta": -14.2,
@@ -309,35 +293,30 @@ def _generate_mock_strikes(spot: float, step: int, num_strikes: int, base_iv: fl
     return strikes
 
 def get_option_chain(symbol: str) -> dict:
-    """
-    Returns full option chain in internal format.
-    Supports: "NIFTY", "BANKNIFTY" (case-insensitive).
-    Returns NIFTY data for unknown symbols.
-    """
     sym = symbol.upper()
-    
     if sym in asset_config:
-        spot = asset_config[sym]["spot"]
-        lot_size = asset_config[sym]["lot"]
-        step = asset_config[sym]["step"]
-        # Maintain the 1.8% straddle logic dynamically
-        atm_straddle = spot * 0.018 
+        cfg = asset_config[sym]
+        spot = cfg["spot"]
+        lot_size = cfg["lot"]
+        step = cfg["step"]
         current_iv = 0.15
-    else: 
-        # Safe Default NIFTY if symbol isn't found
-        sym = "NIFTY"
-        spot = 19000.0
-        lot_size = 50
-        step = 100
-        atm_straddle = 350.0
+    else:
+        # Fallback to NIFTY data (from the same dict)
+        nifty = asset_config["NIFTY"]
+        spot = nifty["spot"]
+        lot_size = nifty["lot"]
+        step = nifty["step"]
         current_iv = 0.138
-    # -----------------------------------
+        sym = "NIFTY"
+
+    atm_straddle = spot * 0.018
+    expiry = (datetime.utcnow() + timedelta(days=24)).strftime("%Y-%m-%d")
 
     return {
         "symbol": sym,
         "spot": spot,
-        "timestamp": "2024-07-01T10:30:00",
-        "expiry": "2024-07-25",
+        "timestamp": datetime.utcnow().isoformat(),
+        "expiry": expiry,
         "days_to_expiry": 24,
         "iv_rank": 42.0,
         "current_iv": current_iv,

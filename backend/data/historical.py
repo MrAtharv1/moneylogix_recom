@@ -1,9 +1,8 @@
-"""
-historical.py — Historical IV data for IV Rank computation.
-Uses India VIX as a proxy for Nifty IV.
-"""
+"""historical.py — Historical IV data for IV Rank computation."""
 import yfinance as yf
 import logging
+import pandas as pd
+import asyncio
 from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
@@ -16,44 +15,40 @@ FALLBACK_IV_DATA = {
     "historical_ivs": []
 }
 
-def get_historical_iv(symbol: str = "NIFTY", lookback_days: int = 365) -> dict:
-    """
-    Fetches historical India VIX data via yfinance.
-    On ANY failure: return FALLBACK_IV_DATA (never raise).
-    """
-    try:
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=lookback_days)
+def _fetch_yfinance_sync(symbol: str, lookback_days: int) -> dict:
+    end = datetime.now()
+    start = end - timedelta(days=lookback_days)
+    vix = yf.download("^INDIAVIX", start=start, end=end, progress=False)
+    
+    if vix.empty:
+        raise ValueError("No VIX data")
         
-        # yfinance India VIX ticker
-        vix_data = yf.download("^INDIAVIX", start=start_date, end=end_date, progress=False)
+    if isinstance(vix.columns, pd.MultiIndex):
+        close = vix['Close']
+    else:
+        close = vix['Close']
         
-        if vix_data.empty:
-            raise ValueError("No data returned from yfinance")
-            
-        # Get Closing prices and drop NaNs
-        closes = vix_data['Close'].dropna().tolist()
-        if not closes:
-            raise ValueError("No closing data found")
-            
-        current_iv_pct = closes[-1]
-        high_iv_pct = max(closes)
-        low_iv_pct = min(closes)
+    closes = close.dropna().tolist()
+    if not closes:
+        raise ValueError("No closing data")
         
-        # IV Rank formula: (Current - Low) / (High - Low) * 100
-        if high_iv_pct > low_iv_pct:
-            iv_rank = ((current_iv_pct - low_iv_pct) / (high_iv_pct - low_iv_pct)) * 100.0
-        else:
-            iv_rank = 50.0
+    current = closes[-1]
+    high = max(closes)
+    low = min(closes)
+    iv_rank = ((current - low) / (high - low)) * 100 if high > low else 50.0
+    
+    return {
+        "current_iv": float(current / 100.0),
+        "iv_52w_high": float(high / 100.0),
+        "iv_52w_low": float(low / 100.0),
+        "iv_rank": round(iv_rank, 2),
+        "historical_ivs": [round(float(x) / 100.0, 4) for x in closes]
+    }
 
-        return {
-            "current_iv": current_iv_pct / 100.0,
-            "iv_52w_high": high_iv_pct / 100.0,
-            "iv_52w_low": low_iv_pct / 100.0,
-            "iv_rank": round(iv_rank, 2),
-            "historical_ivs": [round(x / 100.0, 4) for x in closes]
-        }
-        
+async def get_historical_iv(symbol: str = "NIFTY", lookback_days: int = 365) -> dict:
+    try:
+        # Prevent pandas and yfinance from blocking the async event loop
+        return await asyncio.to_thread(_fetch_yfinance_sync, symbol, lookback_days)
     except Exception as e:
-        logger.warning(f"Failed to fetch historical IV for {symbol}: {e}. Using fallback.")
+        logger.warning(f"Historical IV fetch failed: {e}")
         return FALLBACK_IV_DATA

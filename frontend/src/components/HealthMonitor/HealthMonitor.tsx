@@ -13,10 +13,10 @@ interface Props {
 }
 
 const STATUS_CONFIG = {
-  connected: { dot: 'bg-profit', text: '● Monitoring live' },
-  connecting: { dot: 'bg-warning', text: '● Connecting...' },
-  disconnected: { dot: 'bg-secondary', text: '● Disconnected' },
-  error: { dot: 'bg-loss', text: '● Connection error' },
+  connected: { dot: 'bg-profit', glow: 'shadow-[0_0_8px_rgba(47,191,113,0.6)]', text: 'Monitoring live' },
+  connecting: { dot: 'bg-warning', glow: 'shadow-[0_0_8px_rgba(245,166,35,0.6)]', text: 'Connecting...' },
+  disconnected: { dot: 'bg-secondary/50', glow: '', text: 'Disconnected' },
+  error: { dot: 'bg-loss', glow: 'shadow-[0_0_8px_rgba(226,85,85,0.6)]', text: 'Connection error' },
 };
 
 // HELPER: Forces IST Time format
@@ -39,18 +39,12 @@ export function HealthMonitor({ strategyId }: Props) {
 
   useEffect(() => {
     if (!latestEvent) return;
-    // Avoid reprocessing the same event twice.
     if (lastCheckedAt.current === latestEvent.checked_at) return;
     lastCheckedAt.current = latestEvent.checked_at;
 
-    // Clear stale explanation immediately on a new health check, then show
-    // the new one once it's available — never show a previous event's text
-    // while the new one is "loading".
     setExplanation('');
     if (latestEvent.explanation) {
       setIsExplanationLoading(true);
-      // explanation already arrives with the event payload; briefly show
-      // loading to avoid a jarring flash, then resolve.
       const t = setTimeout(() => {
         setExplanation(latestEvent.explanation);
         setIsExplanationLoading(false);
@@ -64,37 +58,41 @@ export function HealthMonitor({ strategyId }: Props) {
   const status = STATUS_CONFIG[connectionStatus];
 
   return (
-    <div className="bg-surface border border-border rounded-card p-4">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-primary text-sm font-medium">Health Monitor</h3>
-        <span className="text-xs flex items-center gap-1.5 text-secondary">
-          <span className={`w-2 h-2 rounded-full ${status.dot}`} />
-          {status.text}
-        </span>
+    <div className="flex flex-col rounded-2xl border border-border/40 bg-surface/20 p-5 shadow-sm backdrop-blur-md transition-all">
+      <div className="mb-4 flex items-center justify-between border-b border-border/30 pb-3">
+        <h3 className="text-[11px] font-semibold uppercase tracking-wider text-secondary/70">Health Monitor</h3>
+        <div className="flex items-center gap-2 rounded-full border border-border/40 bg-surface/30 px-2.5 py-1 shadow-sm">
+          <span className={`h-1.5 w-1.5 rounded-full ${status.dot} ${status.glow}`} />
+          <span className="text-[10px] font-medium uppercase tracking-wide text-secondary/80">{status.text}</span>
+        </div>
       </div>
 
       {!latestEvent && (
-        <div className="text-secondary text-sm">
-          Monitoring started. Health check every 60 seconds.
+        <div className="flex h-20 items-center justify-center rounded-xl border border-dashed border-border/50 bg-surface/10 text-[13px] text-secondary/60">
+          Monitoring initialized. Checking health every 60 seconds.
         </div>
       )}
 
       {/* Safety Net: Handle WebSocket Error Messages */}
       {latestEvent && (latestEvent as any).error && (
-        <div className="text-loss text-sm">
+        <div className="rounded-xl border border-loss/20 bg-loss/5 p-3 text-sm text-loss">
           Connection Error: {(latestEvent as any).error}
         </div>
       )}
 
       {latestEvent && latestEvent.diff && !latestEvent.diff.has_changes && (
-        <div className="text-secondary text-sm">
-          ✓ No significant changes since entry — last checked {formatISTTime(latestEvent.checked_at)}
+        <div className="flex items-center gap-2 rounded-xl bg-surface/30 px-4 py-3 text-[13px] text-secondary/80">
+          <span className="text-profit">✓</span>
+          Stable — last checked at <span className="font-medium tabular-nums">{formatISTTime(latestEvent.checked_at)}</span>
         </div>
       )}
 
       {latestEvent && latestEvent.diff && latestEvent.diff.has_changes && (
-        <div className="flex flex-col gap-2">
-          <ChangeBadge diff={latestEvent.diff} />
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2.5 rounded-xl border border-border/30 bg-surface/10 p-4">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-secondary/60">Detected Changes</span>
+            <ChangeBadge diff={latestEvent.diff} />
+          </div>
           <ExplainerPanel explanation={explanation} isLoading={isExplanationLoading} />
         </div>
       )}

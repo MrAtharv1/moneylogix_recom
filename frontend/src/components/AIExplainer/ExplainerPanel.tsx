@@ -1,6 +1,6 @@
 /**
- * ExplainerPanel — AI explanation panel. Only shows when explanation string is non-empty.
- * Subtle blue-tinted card with "AI" badge.
+ * ExplainerPanel — AI explanation panel. 
+ * Styled as a premium, native copilot integration.
  */
 interface Props {
   explanation: string;
@@ -10,12 +10,10 @@ interface Props {
 export function ExplainerPanel({ explanation, isLoading }: Props) {
   if (isLoading) {
     return (
-      <div className="rounded-lg p-4 mt-2" style={{ backgroundColor: '#0f1e3d', border: '1px solid #1e3a5f' }}>
-        <div className="flex flex-col gap-2">
-          <div className="skeleton h-3 w-full" />
-          <div className="skeleton h-3 w-5/6" />
-          <div className="skeleton h-3 w-2/3" />
-        </div>
+      <div className="flex flex-col gap-3 rounded-xl border border-accent/20 bg-surface/20 p-4 shadow-[0_0_15px_-3px_rgba(79,140,255,0.05)]">
+        <div className="h-3 w-full animate-pulse rounded bg-border/50" />
+        <div className="h-3 w-5/6 animate-pulse rounded bg-border/50" />
+        <div className="h-3 w-2/3 animate-pulse rounded bg-border/50" />
       </div>
     );
   }
@@ -23,15 +21,19 @@ export function ExplainerPanel({ explanation, isLoading }: Props) {
   if (!explanation) return null;
 
   return (
-    <div className="rounded-lg p-4 mt-2" style={{ backgroundColor: '#0f1e3d', border: '1px solid #1e3a5f' }}>
-      <span
-        className="inline-block text-xs px-1.5 py-0.5 rounded mb-2"
-        style={{ backgroundColor: '#1e3a5f', color: '#3b82f6' }}
-      >
-        AI
-      </span>
-      <p className="text-primary leading-relaxed text-sm">{explanation}</p>
-      <p className="text-secondary text-xs mt-2">This is a mechanical explanation, not investment advice.</p>
+    <div className="relative rounded-xl border border-accent/20 bg-surface/20 p-4 shadow-[0_0_15px_-3px_rgba(79,140,255,0.05)]">
+      <div className="mb-2 flex items-center gap-2">
+        <span className="flex h-5 items-center justify-center rounded bg-accent/10 px-1.5 text-[10px] font-bold text-accent ring-1 ring-inset ring-accent/20">
+          AI
+        </span>
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-secondary/60">
+          Analysis
+        </span>
+      </div>
+      <p className="text-[13px] leading-relaxed text-primary/90">{explanation}</p>
+      <p className="mt-3 text-[10px] text-secondary/50">
+        This is a mechanical evaluation, not investment advice.
+      </p>
     </div>
   );
 }
