@@ -1,7 +1,3 @@
-Here is the **updated `README.md`** that reflects **all the new features and fixes** you've implemented (Risk‑Appetite Recommender, Strike Ladder, Strategy Templates, Sentiment Detection, and all the UI/UX enhancements).
-
----
-
 ```markdown
 # MoneyLogix Strategy Builder
 
